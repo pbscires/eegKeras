@@ -20,21 +20,6 @@ def generate_train_and_test_data(filePath, trainPct):
     y = dataset[:,19]
     numSamples = X.shape[0]
     print ("numSamples = ", numSamples)
-    # X, y = list(), list()
-    # with open(filePath, 'r') as f:
-    #     numSamples = 0
-    #     for line in f.readlines():
-    #         numSamples += 1
-    #         # print ("line ", numSamples, ": ", line)
-    #         featuresAndResult = line.split(',')
-    #         features = [float(val) for val in featuresAndResult[:-1]]
-    #         result = int(featuresAndResult[-1])
-    #         X.append(features)
-    #         y.append(result)
-    #         # print ("features = ", features)
-    #         # print ("result = ", result)
-    #         # if (numSamples > 10):
-    #         #     break
     numTrain = int (trainPct * numSamples)
     numTest = numSamples - numTrain
     print ("numTrain = ", numTrain, ", numTest = ", numTest, ", number of lines = ", numSamples)
@@ -42,10 +27,6 @@ def generate_train_and_test_data(filePath, trainPct):
     X_test = X[numTrain:]
     y_train = y[:numTrain]
     y_test = y[numTrain:]
-    # X_train = np.array(X[:numTrain])
-    # X_test = np.array(X[numTrain:])
-    # y_train = np.array(y[:numTrain])
-    # y_test = np.array(y[numTrain:])
     return (X_train, y_train, X_test, y_test)
 
 def createModel_LSTM_DNN(numTimeSteps_1, numTimeSteps_2, numFeatures):
@@ -69,7 +50,7 @@ def createModel_DNN(numSamples, numFeatures):
     model.add(Dense(32, input_shape=(numFeatures, ), activation='relu'))
     model.add(Dense(16, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
-    model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     print (model.summary())
     return (model)
 
@@ -86,16 +67,21 @@ if __name__ == '__main__':
     # y_train = y_train[:1400]
     # y_train = np.reshape(y_train, (28, 50, 1))
     # model = createModel_LSTM_DNN(50, 25, X_train.shape[2])
+    
+    # Fit the model
     model = createModel_DNN(20, 19)
-    model.fit(X_train, y_train, epochs=1)
+    model.fit(X_train, y_train, epochs=50, batch_size=10)
 
     # evaluate the model
+    # evaluate the model
+    scores = model.evaluate(X_test, y_test)
+    print("\n%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
     correct = 0
     # X_test = X_test[:350, :]
     # X_test = np.reshape(X_test, (7, 50, 19))
     # y_test = y_test[:350]
     y_hat = model.predict(X_test)
     print ("shape of y_hat = ", y_hat.shape)
-    print ("y_hat = ", y_hat)
-    print ("y_test = ", y_test)
+    # print ("y_hat = ", y_hat)
+    # print ("y_test = ", y_test)
     
