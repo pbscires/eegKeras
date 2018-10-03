@@ -5,6 +5,7 @@ from keras.layers import LSTM
 from keras.layers import TimeDistributed
 from keras.layers import RepeatVector
 
+
 # This program will read a .csv file, e.g.: LineLength.chb03_04.edf.csv,
 #  and try to create an LSTM-based model to detect the seizures.
 
