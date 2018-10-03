@@ -25,9 +25,14 @@ dataset = np.loadtxt(filePath, delimiter=',')
 X = dataset[:,:19]
 y = dataset[:,19]
 
+# checkpoint
+chkp_filepath="weights-improvement-{epoch:02d}-{val_acc:.2f}.hdf5"
+checkpoint = ModelCheckpoint(chkp_filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+callbacks_list = [checkpoint]
+
 # create model
-model = KerasClassifier(build_fn=create_model, epochs=50, batch_size=10, verbose=0)
-# evaluate using 10-fold cross validation
-kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
+model = KerasClassifier(build_fn=create_model, epochs=50, batch_size=10, verbose=0, callbacks=callbacks_list)
+# evaluate using 5-fold cross validation
+kfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
 results = cross_val_score(model, X, y, cv=kfold)
-print(results.mean())
+print(results)
