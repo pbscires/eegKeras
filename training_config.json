@@ -1,0 +1,6 @@
+{
+    "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
+    "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
+    "trainingFile" : "LineLength.chb03_01.edf.csv",
+    "savedModelFilePrefix" : "chb03_01"
+}
