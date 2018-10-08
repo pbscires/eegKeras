@@ -1,6 +1,6 @@
 {
-    "testDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
-    "savedModelFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_LSTM.json",
-    "savedWeightsFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_LSTM.h5",
+    "testDataTopDir" : "D:\\Documents\\csv_ll\\",
+    "savedModelFilePath" : "D:\\Documents\\eegModels\\LL_chb03_LSTM.json",
+    "savedWeightsFilePath" : "D:\\Documents\\eegModels\\LL_chb03_LSTM.h5",
     "testFiles" : ["LineLength.chb03_02.edf.csv", "LineLength.chb03_03.edf.csv"]
 }
