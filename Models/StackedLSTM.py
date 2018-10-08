@@ -46,8 +46,19 @@ class StackedLSTM(object):
             self.inSeqLen = inSeqLen
             self.outSeqLen = outSeqLen
 
+    def saveModel(self, outputDir, filePrefix):
+        outFilename_model = filePrefix + '_LSTM.json'
+        outFilepath = os.path.join(outputDir, outFilename_model)
+        # serialize model to JSON
+        model_json = self.model.to_json()
+        with open(outFilepath, "w") as json_file:
+            json_file.write(model_json)
+        # serialize weights to HDF5
+        outFilename_weights = filePrefix + '_LSTM.h5'
+        outFilepath = os.path.join(outputDir, outFilename_weights)
+        self.model.save_weights(outFilepath)
+        print("Saved model to disk")
 
-    
     def getModel(self):
         return (self.model)
     
@@ -81,26 +92,7 @@ class StackedLSTM(object):
         self.y = y
     
     def fit(self):
-        # # checkpoint
-        # chkp_filepath="lstm_LL_keras_weights-improvement-{epoch:02d}-{val_acc:.2f}.hdf5"
-        # checkpoint = ModelCheckpoint(chkp_filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-        # callbacks_list = [checkpoint]
-
-        # self.model.fit(X, y, validation_split=0.33, epochs=50, batch_size=10, verbose=0, callbacks=callbacks_list)
         self.model.fit(self.X, self.y, validation_split=0.33, epochs=50, batch_size=10, verbose=2)
-
-    def save(self, outputDir, filePrefix):
-        outFilename_model = filePrefix + '_LSTM.json'
-        outFilepath = os.path.join(outputDir, outFilename_model)
-        # serialize model to JSON
-        model_json = self.model.to_json()
-        with open(outFilepath, "w") as json_file:
-            json_file.write(model_json)
-        # serialize weights to HDF5
-        outFilename_weights = filePrefix + '_LSTM.h5'
-        outFilepath = os.path.join(outputDir, outFilename_weights)
-        self.model.save_weights(outFilepath)
-        print("Saved model to disk")
 
     def evaluate(self):
         score = self.model.evaluate(self.X, self.y, verbose=2)

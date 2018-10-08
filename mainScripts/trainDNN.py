@@ -28,3 +28,30 @@ class TrainingConfigReader(object):
     def getTrainingFiles(self):
         return self.jsonData['trainingFiles']
 
+if __name__ == '__main__':
+    if (len(sys.argv) < 2):
+        print ("Error! Invalid number of arguments")
+        exit (-1)
+    configFile = sys.argv[1]
+    print ("ConfigFile = {}".format(configFile))
+    cfgReader = TrainingConfigReader(configFile)
+    trainingDataTopDir = cfgReader.getTrainingDataDir()
+    trainingFiles = cfgReader.getTrainingFiles()
+    modelOutputDir = cfgReader.getModelOutputDir()
+    savedModelFilePrefix = cfgReader.getSavedModelPrefix()
+    print ("trainingDataTopDir = ", trainingDataTopDir)
+    print ("trainingFiles = ", trainingFiles)
+    print ("modelOutputDir = ", modelOutputDir)
+    print ("savedModelFilePrefix = ", savedModelFilePrefix)
+
+    numFeatures = 19
+    dnnModel = DNN.DNN("Classifier_3layers")
+    dnnModel.createModel(numFeatures)
+
+    if (len(trainingFiles) == 1):
+        trainingFilePath = os.path.join(trainingDataTopDir, trainingFiles[0])
+        print ("trainingFilePath = ", trainingFilePath)
+        dnnModel.prepareDataset_1file(trainingFilePath)
+        dnnModel.fit()
+        dnnModel.saveModel(modelOutputDir, savedModelFilePrefix)
+

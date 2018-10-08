@@ -53,4 +53,4 @@ if __name__ == '__main__':
         print ("trainingFile = ", trainingFile)
         stackedLSTM.prepareDataset_1file(os.path.join(trainingDataTopDir, trainingFile))
         stackedLSTM.fit()
-        stackedLSTM.save(modelOutputDir, savedModelFilePrefix)
+        stackedLSTM.saveModel(modelOutputDir, savedModelFilePrefix)
