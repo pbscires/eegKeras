@@ -1,6 +1,6 @@
 {
     "trainingDataTopDir" : "D:\\Documents\\csv_combined_ll",
-    "modelOutputDir" : "D:\\Documents\\vscode_workspace\\eegKeras\\savedModels",
+    "modelOutputDir" : "D:\\Documents\\eegModels\\",
     "trainingFiles" : ["chb03.csv"],
     "savedModelFilePrefix" : "LL_chb03"
 }

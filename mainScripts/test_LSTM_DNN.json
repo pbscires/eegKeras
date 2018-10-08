@@ -1,8 +1,8 @@
 {
-    "savedModelLSTM" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_LSTM.json",
-    "savedWeightsLSTM" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_LSTM.h5",
-    "savedModelDNN" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_DNN.json",
-    "savedWeightsDNN" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_DNN.h5",
-    "testDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
+    "savedModelLSTM" : "D:\\Documents\\eegModels\\LL_chb03_LSTM.json",
+    "savedWeightsLSTM" : "D:\\Documents\\eegModels\\LL_chb03_LSTM.h5",
+    "savedModelDNN" : "D:\\Documents\\eegModels\\LL_chb03_DNN.json",
+    "savedWeightsDNN" : "D:\\Documents\\eegModels\\LL_chb03_DNN.h5",
+    "testDataTopDir" : "D:\\Documents\\csv_ll\\",
     "testFiles" : ["LineLength.chb03_02.edf.csv", "LineLength.chb03_03.edf.csv"]
 }
