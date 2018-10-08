@@ -42,17 +42,6 @@ class TestConfigReader(object):
     def getTimestepsToPredict(self):
         return int(self.jsonData['timesteps_to_predict'])
 
-def calculateAccuracy(predictedValues, actualValues):
-    numCorrect = 0
-    numTotal = predictedValues.shape[0]
-    for i in range(numTotal):
-        if (abs(predictedValues[i] - actualValues[i]) < 0.1):
-            numCorrect += 1
-        print ("current predicted = {}, actual = {}".format(predictedValues[i], actualValues[i]))
-        print ("Accuracy after {} rows = {}".format(i+1, float(numCorrect/(i+1))))
-    
-    return (float(numCorrect/numTotal))
-
 def calculateMetrics(predictedValues, actualValues):
     predictedPositive = predictedNegative = 0
     actualPositive = actualNegative = 0
@@ -75,7 +64,11 @@ def calculateMetrics(predictedValues, actualValues):
                 trueNegatives += 1
             else:
                 falseNegatives += 1
-    
+
+    # don't bother to print anything if there are no positive values in the actual dataset
+    if (actualPositive <= 0):
+        return
+
     print ("truePositives = {}, falsePositives = {}, trueNegatives = {}, falseNegatives = {}"
             .format(truePositives, falsePositives, trueNegatives, falseNegatives))
     print ("actualPositive = {}, actualNegative = {}".format(actualPositive, actualNegative))
@@ -138,11 +131,12 @@ if __name__ == '__main__':
         numRowsNeededForTest = inSeqLen + outSeqLen
         numRows = dataset.shape[0]
         while (numRows > numRowsNeededForTest):
-            numRemainingRows = numRows
-            print ("numRows={}, numFeatures={}".format(numRows, numFeatures))
+            numRemainingRows = min (numRows, (inSeqLen+timeStepsToPredict))
+            # print ("numRows={}, numFeatures={}, numRemainingRows={}"
+            #         .format(numRows, numFeatures, numRemainingRows))
 
-            predictedDataset = np.empty((1, (numRows), numFeatures))
-            predictedSeizureValues = np.empty((numRows))
+            predictedDataset = np.empty((1, (inSeqLen+timeStepsToPredict), numFeatures))
+            predictedSeizureValues = np.empty((inSeqLen+timeStepsToPredict))
             inputRowStart = 0
             inputRowEnd = inputRowStart + inSeqLen
             outputRowStart = inputRowEnd
@@ -165,6 +159,6 @@ if __name__ == '__main__':
                 # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
                 #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
 
-            calculateMetrics(predictedSeizureValues, dataset[:,numFeatures])
-            dataset = np.delete(dataset, [0,1,2,3,4,5], axis=0)
+            calculateMetrics(predictedSeizureValues[inSeqLen:], dataset[inSeqLen:,numFeatures])
+            dataset = np.delete(dataset, [0,1,2,3,4], axis=0)
             numRows = dataset.shape[0]
