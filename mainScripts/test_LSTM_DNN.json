@@ -4,5 +4,6 @@
     "savedModelDNN" : "D:\\Documents\\eegModels\\LL_chb03_DNN.json",
     "savedWeightsDNN" : "D:\\Documents\\eegModels\\LL_chb03_DNN.h5",
     "testDataTopDir" : "D:\\Documents\\csv_ll\\",
-    "testFiles" : ["LineLength.chb03_02.edf.csv", "LineLength.chb03_03.edf.csv"]
+    "testFiles" : ["LineLength.chb03_02.edf.csv", "LineLength.chb03_03.edf.csv"],
+    "timesteps_to_predict" : 10
 }
