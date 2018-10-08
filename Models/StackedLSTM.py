@@ -68,7 +68,7 @@ class StackedLSTM(object):
         # callbacks_list = [checkpoint]
 
         # self.model.fit(X, y, validation_split=0.33, epochs=50, batch_size=10, verbose=0, callbacks=callbacks_list)
-        self.model.fit(self.X, self.y, validation_split=0.33, epochs=50, batch_size=10, verbose=0)
+        self.model.fit(self.X, self.y, validation_split=0.33, epochs=50, batch_size=10, verbose=2)
 
     def save(self, outputDir, filePrefix):
         outFilename_model = filePrefix + '_LSTM.json'
