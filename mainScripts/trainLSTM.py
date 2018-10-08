@@ -2,6 +2,7 @@ import sys
 from Models import StackedLSTM
 import json
 import os
+import tensorflow as tf
 
 class TrainingConfigReader(object):
     '''
@@ -52,5 +53,7 @@ if __name__ == '__main__':
         trainingFile = trainingFiles[0]
         print ("trainingFile = ", trainingFile)
         stackedLSTM.prepareDataset_1file(os.path.join(trainingDataTopDir, trainingFile))
+        tf.__version__sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+        print ("VERSION", tf.__version__sess)
         stackedLSTM.fit()
         stackedLSTM.saveModel(modelOutputDir, savedModelFilePrefix)
