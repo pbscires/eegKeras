@@ -39,6 +39,52 @@ class TestConfigReader(object):
     def getTestFiles(self):
         return self.jsonData['testFiles']
 
+    def getTimestepsToPredict(self):
+        return int(self.jsonData['timesteps_to_predict'])
+
+def calculateAccuracy(predictedValues, actualValues):
+    numCorrect = 0
+    numTotal = predictedValues.shape[0]
+    for i in range(numTotal):
+        if (abs(predictedValues[i] - actualValues[i]) < 0.1):
+            numCorrect += 1
+        print ("current predicted = {}, actual = {}".format(predictedValues[i], actualValues[i]))
+        print ("Accuracy after {} rows = {}".format(i+1, float(numCorrect/(i+1))))
+    
+    return (float(numCorrect/numTotal))
+
+def calculateMetrics(predictedValues, actualValues):
+    predictedPositive = predictedNegative = 0
+    actualPositive = actualNegative = 0
+    truePositives = falsePositives = trueNegatives = falseNegatives = 0
+    numTotal = predictedValues.shape[0]
+    for i in range(numTotal):
+        if (abs(actualValues[i] - 1.0) < 0.1):
+            actualPositive += 1
+        elif (actualValues[i] < 0.1):
+            actualNegative += 1
+        if (abs(predictedValues[i] - 1.0) < 0.1):
+            predictedPositive += 1
+            if (abs(predictedValues[i] - actualValues[i]) < 0.1):
+                truePositives += 1
+            else:
+                falsePositives += 1
+        elif (predictedValues[i] < 0.1):
+            predictedNegative += 1
+            if (abs(predictedValues[i] - actualValues[i]) < 0.1):
+                trueNegatives += 1
+            else:
+                falseNegatives += 1
+    
+    print ("truePositives = {}, falsePositives = {}, trueNegatives = {}, falseNegatives = {}"
+            .format(truePositives, falsePositives, trueNegatives, falseNegatives))
+    print ("actualPositive = {}, actualNegative = {}".format(actualPositive, actualNegative))
+    print ("Precision = ", float((truePositives + trueNegatives) / (actualPositive + actualNegative)))
+    if (actualPositive > 0):
+        print ("Recall = ", float(truePositives / actualPositive))
+    else:
+        print ("Recall = N.A. (actualPositive == 0)")
+
 if __name__ == '__main__':
     if (len(sys.argv) < 2):
         print ("Error! Invalid number of arguments")
@@ -57,24 +103,68 @@ if __name__ == '__main__':
 
     print ("lstmModel={}, lstmWeights={}, dnnModel={}, dnnWeights={}"
             .format(lstmModelFile, lstmWeightsFile, dnnModelFile, dnnWeightsFile))
-    print("Loaded model from disk")
+
+    timeStepsToPredict = cfgReader.getTimestepsToPredict()
 
     # evaluate loaded model on test data
     testFiles = cfgReader.getTestFiles()
     testDataTopDir = cfgReader.getTestDataDir()
 
     lstmModel = StackedLSTM.StackedLSTM("encoder_decoder_sequence")
-    lstmModel.loadModel(lstmModelFile, lstmWeightsFile, 30, 10)
+    inSeqLen = 30
+    outSeqLen = 10
+    lstmModel.loadModel(lstmModelFile, lstmWeightsFile, inSeqLen, outSeqLen)
     dnnModel = DNN.DNN("Classifier_3layers")
     dnnModel.loadModel(dnnModelFile, dnnWeightsFile)
-    # filePath = '/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength/LineLength.chb03_01.edf.csv'
-    # filePath = '/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LL_PreIctal/chb04.csv'
+    print ("LSTM model = ", lstmModel.getModel().summary())
+    print ("DNN model = ", dnnModel.getModel().summary())
+    print("Loaded model from disk")
+
     for testFile in testFiles:
         testFilePath = os.path.join(testDataTopDir, testFile)
         print ("testFilePath = ", testFilePath)
-        # lstmModel.prepareDataset_1file(testFilePath)
-        # lstmModel.evaluate()
 
+        # 1. Identify the number of time steps available in the test file.
+        # 2. Read the first inSeqLen number of entries from the test file.
+        # 3. Predict outSeqLen entries using LSTM
+        # 4. Predict the seizure/non-seizure for outSeqLen entries using DNN
+        # 5. If the prediction was accurate, move the inSequence pointer by outSeqLen
+        #     i.e inSeq pointer += outSeqLen
+        # 6. If (number of remaining time steps > inSeqLen + outSeqLen) in the test file,
+        #       go back to step 2.
 
-        # score = loaded_model.evaluate(X, y, verbose=0)
-        # print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1]*100))
+        dataset = np.loadtxt(testFilePath, delimiter=',')
+        numFeatures = dataset.shape[1] - 1
+        numRowsNeededForTest = inSeqLen + outSeqLen
+        numRows = dataset.shape[0]
+        while (numRows > numRowsNeededForTest):
+            numRemainingRows = numRows
+            print ("numRows={}, numFeatures={}".format(numRows, numFeatures))
+
+            predictedDataset = np.empty((1, (numRows), numFeatures))
+            predictedSeizureValues = np.empty((numRows))
+            inputRowStart = 0
+            inputRowEnd = inputRowStart + inSeqLen
+            outputRowStart = inputRowEnd
+            outputRowEnd = outputRowStart + outSeqLen
+            print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+                    .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+            predictedDataset[0, inputRowStart:inputRowEnd,:numFeatures] = dataset[inputRowStart:inputRowEnd, :numFeatures]
+            predictedSeizureValues[inputRowStart:inputRowEnd] = dataset[inputRowStart:inputRowEnd, numFeatures]
+            while (numRemainingRows >= numRowsNeededForTest):
+                predictedDataset[:, outputRowStart:outputRowEnd, :] = \
+                    lstmModel.getModel().predict(predictedDataset[:, inputRowStart:inputRowEnd, :])
+                for i in range(outSeqLen):
+                    predictedSeizureValues[outputRowStart+i] = dnnModel.getModel().predict(predictedDataset[:, outputRowStart+i, :])
+                
+                inputRowStart += outSeqLen
+                inputRowEnd = inputRowStart + inSeqLen
+                outputRowStart = inputRowEnd
+                outputRowEnd = outputRowStart + outSeqLen
+                numRemainingRows -= outSeqLen
+                # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+                #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+
+            calculateMetrics(predictedSeizureValues, dataset[:,numFeatures])
+            dataset = np.delete(dataset, [0,1,2,3,4,5], axis=0)
+            numRows = dataset.shape[0]
