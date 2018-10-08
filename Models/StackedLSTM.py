@@ -4,15 +4,19 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import TimeDistributed
 from keras.layers import RepeatVector
+from keras.models import model_from_json
+import json
 import os
 
 class StackedLSTM(object):
     '''
         Constructor
     '''
-    def __init__(self, modelName, inSeqLen, outSeqLen, numFeatures):
-
+    def __init__(self, modelName):
         self.modelName = modelName
+    
+    def createModel(self, inSeqLen, outSeqLen, numFeatures):
+
         self.inSeqLen = inSeqLen
         self.outSeqLen = outSeqLen
         self.numFeatures = numFeatures
@@ -20,7 +24,7 @@ class StackedLSTM(object):
         # define LSTM
         model = Sequential()
 
-        if (modelName == "encoder_decoder_sequence"):
+        if (self.modelName == "encoder_decoder_sequence"):
             model.add(LSTM(175, input_shape=(inSeqLen, numFeatures)))
             model.add(RepeatVector(outSeqLen))
             model.add(LSTM(150, return_sequences=True))
@@ -28,6 +32,21 @@ class StackedLSTM(object):
             model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
 
         self.model = model
+    
+    def loadModel(self, modelFile, weightsFile, inSeqLen, outSeqLen):
+        if (self.modelName == "encoder_decoder_sequence"):
+            json_file = open(modelFile, 'r')
+            loaded_model_json = json_file.read()
+            json_file.close()
+            loaded_model = model_from_json(loaded_model_json)
+            # load weights into new model
+            loaded_model.load_weights(weightsFile)
+            loaded_model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
+            self.model = loaded_model
+            self.inSeqLen = inSeqLen
+            self.outSeqLen = outSeqLen
+
+
     
     def getModel(self):
         return (self.model)
@@ -68,7 +87,7 @@ class StackedLSTM(object):
         # callbacks_list = [checkpoint]
 
         # self.model.fit(X, y, validation_split=0.33, epochs=50, batch_size=10, verbose=0, callbacks=callbacks_list)
-        self.model.fit(self.X, self.y, validation_split=0.33, epochs=50, batch_size=10, verbose=0)
+        self.model.fit(self.X, self.y, validation_split=0.33, epochs=50, batch_size=10, verbose=2)
 
     def save(self, outputDir, filePrefix):
         outFilename_model = filePrefix + '_LSTM.json'
@@ -83,5 +102,8 @@ class StackedLSTM(object):
         self.model.save_weights(outFilepath)
         print("Saved model to disk")
 
+    def evaluate(self):
+        score = self.model.evaluate(self.X, self.y, verbose=2)
+        print("%s: %.2f%%" % (self.model.metrics_names[1], score[1]*100))
 
 

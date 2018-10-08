@@ -45,7 +45,8 @@ if __name__ == '__main__':
     print ("savedModelFilePrefix = ", savedModelFilePrefix)
 
     numFeatures = 19
-    stackedLSTM = StackedLSTM.StackedLSTM("encoder_decoder_sequence", 30, 10, numFeatures)
+    stackedLSTM = StackedLSTM.StackedLSTM("encoder_decoder_sequence")
+    stackedLSTM.createModel(30, 10, numFeatures)
 
     if (len(trainingFiles) == 1):
         trainingFile = trainingFiles[0]
