@@ -17,8 +17,9 @@ class DNN(object):
 
         model = Sequential()
         if (self.modelName == "Classifier_3layers"):
-            model.add(Dense(12, input_dim=numFeatures, activation='relu')) 
-            model.add(Dense(8, activation='relu')) 
+            model.add(Dense(10, input_dim=numFeatures, activation='relu')) 
+            model.add(Dense(20, activation='relu')) 
+            model.add(Dense(10, activation='relu')) 
             # model.add(Dense(1, activation='softmax'))
             model.add(Dense(1, activation='sigmoid'))
             # Compile model

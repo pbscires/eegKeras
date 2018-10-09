@@ -47,26 +47,33 @@ def calculateMetrics(predictedValues, actualValues):
     actualPositive = actualNegative = 0
     truePositives = falsePositives = trueNegatives = falseNegatives = 0
     numTotal = predictedValues.shape[0]
+    threshold = 0.5
     for i in range(numTotal):
         if (abs(actualValues[i] - 1.0) < 0.1):
             actualPositive += 1
         elif (actualValues[i] < 0.1):
             actualNegative += 1
-        if (abs(predictedValues[i] - 1.0) < 0.1):
+        if (abs(predictedValues[i] - 1.0) < threshold):
             predictedPositive += 1
-            if (abs(predictedValues[i] - actualValues[i]) < 0.1):
+            if (abs(predictedValues[i] - actualValues[i]) < threshold):
                 truePositives += 1
             else:
                 falsePositives += 1
-        elif (predictedValues[i] < 0.1):
+        elif (predictedValues[i] < threshold):
             predictedNegative += 1
-            if (abs(predictedValues[i] - actualValues[i]) < 0.1):
+            if (abs(predictedValues[i] - actualValues[i]) < threshold):
                 trueNegatives += 1
             else:
                 falseNegatives += 1
+        else:
+            print ("predictedValues[{}] = {}".format(i, predictedValues[i]))
+
+    if ((actualPositive + actualNegative) != numTotal):
+        print ("Something is wrong!! numbers do not match")
 
     # don't bother to print anything if there are no positive values in the actual dataset
     if (actualPositive <= 0):
+        # print ("Nothing to report:  This testcase did not have any actual positives")
         return
 
     print ("truePositives = {}, falsePositives = {}, trueNegatives = {}, falseNegatives = {}"
@@ -141,8 +148,8 @@ if __name__ == '__main__':
             inputRowEnd = inputRowStart + inSeqLen
             outputRowStart = inputRowEnd
             outputRowEnd = outputRowStart + outSeqLen
-            print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
-                    .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+            # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+            #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
             predictedDataset[0, inputRowStart:inputRowEnd,:numFeatures] = dataset[inputRowStart:inputRowEnd, :numFeatures]
             predictedSeizureValues[inputRowStart:inputRowEnd] = dataset[inputRowStart:inputRowEnd, numFeatures]
             while (numRemainingRows >= numRowsNeededForTest):
