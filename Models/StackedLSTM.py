@@ -29,7 +29,8 @@ class StackedLSTM(object):
             model.add(RepeatVector(outSeqLen))
             model.add(LSTM(150, return_sequences=True))
             model.add(TimeDistributed(Dense(numFeatures)))
-            model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
+            model.compile(loss='mean_absolute_percentage_error', optimizer='sgd', metrics=['accuracy'])
+            # model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
 
         self.model = model
     
@@ -41,7 +42,8 @@ class StackedLSTM(object):
             loaded_model = model_from_json(loaded_model_json)
             # load weights into new model
             loaded_model.load_weights(weightsFile)
-            loaded_model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
+            loaded_model.compile(loss='mean_absolute_percentage_error', optimizer='sgd', metrics=['accuracy'])
+            # loaded_model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
             self.model = loaded_model
             self.inSeqLen = inSeqLen
             self.outSeqLen = outSeqLen
