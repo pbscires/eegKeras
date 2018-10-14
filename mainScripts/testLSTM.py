@@ -1,7 +1,7 @@
 import numpy as np
 from keras.models import Sequential
 from keras.layers import Dense
-from Models import StackedLSTM
+from Models import eegLSTM
 import sys
 import os
 import json
@@ -32,6 +32,10 @@ class TestConfigReader(object):
     def getTestFiles(self):
         return self.jsonData['testFiles']
 
+    def getSeqLens(self):
+        inSeqLen, outSeqLen = int(self.jsonData['inSeqLen']), int(self.jsonData['outSeqLen'])
+        return (inSeqLen, outSeqLen)
+
 if __name__ == '__main__':
     if (len(sys.argv) < 2):
         print ("Error! Invalid number of arguments")
@@ -45,24 +49,29 @@ if __name__ == '__main__':
     # load json and create model
     modelFile = cfgReader.getSavedModelFile()
     weightsFile = cfgReader.getSavedWeightsFile()
-    print("Loaded model from disk")
+    inSeqLen, outSeqLen = cfgReader.getSeqLens()
 
     # evaluate loaded model on test data
     testFiles = cfgReader.getTestFiles()
     testDataTopDir = cfgReader.getTestDataDir()
 
-    stackedLSTM = StackedLSTM.StackedLSTM("encoder_decoder_sequence")
-    stackedLSTM.loadModel(modelFile, weightsFile, 30, 10)
+    print ("modelFile = {}, weightsFile = {}".format(modelFile, weightsFile))
+    print ("inSeqLen = {}, outSeqLen = {}".format(inSeqLen, outSeqLen))
+
+    lstmObj = eegLSTM.eegLSTM("encoder_decoder_sequence")
+    numFeatures = 168
+    lstmObj.loadModel(modelFile, weightsFile, inSeqLen, outSeqLen, numFeatures)
+    print("Loaded model from disk")
     # filePath = '/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength/LineLength.chb03_01.edf.csv'
     # filePath = '/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LL_PreIctal/chb04.csv'
     for testFile in testFiles:
         testFilePath = os.path.join(testDataTopDir, testFile)
         print ("testFilePath = ", testFilePath)
-        stackedLSTM.prepareDataset_1file(testFilePath)
+        lstmObj.prepareDataset_1file(testFilePath)
         # dataset = np.loadtxt(testFile, delimiter=',')
         # X = dataset[:,:19]
         # y = dataset[:,19]
-        stackedLSTM.evaluate()
+        lstmObj.evaluate()
 
         # score = loaded_model.evaluate(X, y, verbose=0)
         # print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1]*100))

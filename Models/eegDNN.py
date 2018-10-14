@@ -5,7 +5,7 @@ from keras.models import model_from_json
 import json
 import os
 
-class DNN(object):
+class eegDNN(object):
     '''
         Constructor
     '''

@@ -1,6 +1,8 @@
 {
-    "testDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
-    "savedModelFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_LSTM.json",
-    "savedWeightsFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_LSTM.h5",
-    "testFiles" : ["LineLength.chb03_02.edf.csv", "LineLength.chb03_03.edf.csv"]
+    "testDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/FFT",
+    "savedModelFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/FFT_chb03_01_LSTM.json",
+    "savedWeightsFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/FFT_chb03_01_LSTM.h5",
+    "testFiles" : ["FFT.chb03_02.edf.csv", "FFT.chb03_03.edf.csv"],
+    "inSeqLen" : 20,
+    "outSeqLen" : 1
 }

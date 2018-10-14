@@ -1,6 +1,9 @@
 {
-    "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
+    "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/FFT",
     "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
-    "trainingFiles" : ["LineLength.chb03_01.edf.csv"],
-    "savedModelFilePrefix" : "LL_chb03_01"
+    "trainingFiles" : ["FFT.chb03_01.edf.csv"],
+    "savedModelFilePrefix" : "FFT_chb03_01",
+    "lstm_layers" : [200, 150],
+    "inSeqLen" : 20,
+    "outSeqLen" : 1
 }
