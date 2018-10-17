@@ -1,8 +1,12 @@
 import numpy as np
+import pandas as pd
+from pandas import DataFrame
 import pyedflib
 import re
 import sys
 import os
+import math
+import json
 
 class TUHdataset(object):
     '''
@@ -62,10 +66,8 @@ class TUHdataset(object):
         numPatientSessions = 0
         numEdfs = 0
         numEdfs = 0
-        patientDirs = {}
-        patientSessions = {}
-        sessionEdfs = {}
-        edfInfo = {}
+        patientInfo = {}
+        recordInfo = {}
         # traverse root directory, and list directories as dirs and files as files
         for root, dirs, files in os.walk(self.rootDir):
             pathComponents = root.split(os.sep)
@@ -74,48 +76,48 @@ class TUHdataset(object):
                 # print ("List of patients = ", dirs)
                 numPatients += len(dirs)
                 for patientID in dirs:
-                    patientSessions[patientID] = []
-            if pathComponents[-1] in patientSessions.keys():
+                    patientInfo[patientID] = {}
+                    patientInfo[patientID]['sessions'] = []
+                    patientInfo[patientID]['records'] = []
+            if pathComponents[-1] in patientInfo.keys():
                 patientID = pathComponents[-1]
                 for sessionID in dirs:
-                    patientSessions[patientID].append(os.path.join(root, sessionID))
+                    patientInfo[patientID]['sessions'].append(sessionID)
                     numPatientSessions += 1
             for filename in files:
                 if (re.search("\.edf$", filename) != None):
                     edfFilePath = os.path.join(root, filename)
                     patientID = pathComponents[-2]
                     sessionID = pathComponents[-1]
-                    edfInfo[edfFilePath] = {}
-                    edfInfo[edfFilePath]['patientID'] = patientID
-                    edfInfo[edfFilePath]['sessionID'] = sessionID
+                    recordID = os.path.basename(edfFilePath)
+                    recordID = os.path.splitext(recordID)[0]
+                    patientInfo[patientID]['records'].append(recordID)
+                    recordInfo[recordID] = {}
+                    recordInfo[recordID]['edfFilePath'] = edfFilePath
+                    recordInfo[recordID]['patientID'] = patientID
+                    recordInfo[recordID]['sessionID'] = sessionID
                     numEdfs += 1
-                    if (patientID not in sessionEdfs.keys()):
-                        sessionEdfs[patientID] = [edfFilePath]
-                    else:
-                        sessionEdfs[patientID].append(edfFilePath)
             # print((len(pathComponents) - 1) * '---', os.path.basename(root))
             # for file in files:
             #     print(len(pathComponents) * '---', file) 
         print ("Total number of patients = ", numPatients)
-        print ("number of unique patients = ", len(patientSessions))
+        print ("number of unique patients = ", len(patientInfo))
         print ("number of patient sessions = ", numPatientSessions)
-        print ("number of session edfs = ", len(sessionEdfs))
         print ("Total number of EDFs = ", numEdfs)
 
         self.numPatients = numPatients
-        self.patientSessions = patientSessions
-        self.sessionEdfs = sessionEdfs
+        self.patientInfo = patientInfo
         self.numEdfs = numEdfs
-        self.edfInfo = edfInfo
-        for filePath in self.edfInfo.keys():
-            self.getEdfSummary(filePath)
+        self.recordInfo = recordInfo
+        for recordID in self.recordInfo.keys():
+            self.getEdfSummary(recordID)
         
-        for patientID in sessionEdfs.keys():
-            for edfFilePath in sessionEdfs[patientID]:
-                print ("EDF summary for patient {} and edfFilePath {} is:".format(patientID, edfFilePath))
-                print (self.edfInfo[edfFilePath])
-    
-    def getEdfSummary(self, filePath):
+        # for patientID in patientInfo.keys():
+        #     for recordID in patientInfo[patientID]['records']:
+        #         print (self.recordInfo[recordID])
+        
+    def getEdfSummary(self, recordID):
+        filePath = self.recordInfo[recordID]['edfFilePath']
         f = pyedflib.EdfReader(filePath)
         numChannels = f.signals_in_file
         channelLabels = f.getSignalLabels()
@@ -126,40 +128,122 @@ class TUHdataset(object):
                 otherLabels.append(channelLabels[i])
                 columnsToDel.append(i)
                 numChannels -= 1
-        self.edfInfo[filePath]['channelLabels'] = np.delete(channelLabels, columnsToDel, axis=0)
-        self.edfInfo[filePath]['other_labels'] = otherLabels
-        self.edfInfo[filePath]['numChannels'] = numChannels
-        self.edfInfo[filePath]['numSamples'] = f.getNSamples()[0]
-        self.edfInfo[filePath]['sampleFrequency'] = f.getSampleFrequency(0)
+        self.recordInfo[recordID]['channelLabels'] = np.delete(channelLabels, columnsToDel, axis=0).tolist()
+        self.recordInfo[recordID]['other_labels'] = otherLabels
+        self.recordInfo[recordID]['numChannels'] = np.int32(numChannels).item()
+        self.recordInfo[recordID]['numSamples'] = np.int32(f.getNSamples()[0]).item()
+        self.recordInfo[recordID]['sampleFrequency'] = np.int32(f.getSampleFrequency(0)).item()
 
-    def loadFile(self, filePath):
+    def getRecordData(self, recordID):
+        filePath = self.recordInfo[recordID]['edfFilePath']
+        numChannels = self.recordInfo[recordID]['numChannels']
+        numSamples = self.recordInfo[recordID]['numSamples']
+        channelLabels = self.recordInfo[recordID]['channelLabels']
+        sigbufs = np.zeros((numChannels, numSamples))
         f = pyedflib.EdfReader(filePath)
-        self.numChannels = f.signals_in_file
-        print ("number of signals in file = ", self.numChannels)
-        self.signal_labels = f.getSignalLabels()
-        print ("signal labels = ", self.signal_labels)
-        # EEG data is valid only when the signal label has '-REF' at the end
-        self.other_labels = []
-        columnsToDel = []
-        for i in np.arange(self.numChannels):
-            if (re.search('\-REF', self.signal_labels[i]) == None):
-                self.other_labels.append(self.signal_labels[i])
-                columnsToDel.append(i)
-                self.numChannels -= 1
-        self.signal_labels = np.delete(self.signal_labels, columnsToDel, axis=0)
-
-        # numSamples = 3600 * 256 = 921,600
-        self.numSamples = f.getNSamples()[0]
-        # sampleFrequency = 256
-        self.sampleFrequency = f.getSampleFrequency(0)
-        print ("numSample = {}, sampleFrequency = {}".format(self.numSamples, self.sampleFrequency))
-        self.sigbufs = np.zeros((self.numChannels, self.numSamples))
-        for i in np.arange(self.numChannels):
+        for i in np.arange(numChannels):
             try:
-                self.sigbufs[i, :] = f.readSignal(i)
+                sigbufs[i, :] = f.readSignal(i)
             except ValueError:
-                print ("Failed to channel {} with name {}".format(i, self.signal_labels[i]))
+                print ("Failed to read channel {} with name {}".format(i, channelLabels[i]))
         # sigbufs above is a 23 x 921600 matrix
         # transpose it so that it becomes 921600 x 23 matrix
-        self.sigbufs = self.sigbufs.transpose()
-        print (self.sigbufs)
+        sigbufs = sigbufs.transpose()
+        # print (sigbufs)
+        return (sigbufs)
+    
+    def getSeizuresSummary(self):
+        '''
+        Read the CSV file and summarize the seizure information on per-record basis
+        '''
+        with open(self.csvFilePath, 'rb') as f:
+            df_out = pd.read_excel(f, sheet_name='train', usecols="A:O", dtype=object)
+        
+        print (df_out)
+        filenames = df_out['Filename']
+        filenameCol = df_out.columns.get_loc('Filename')
+        seizureStartCol = filenameCol + 1
+        seizureEndCol = seizureStartCol + 1
+        seizureTypeCol = seizureEndCol + 1
+        print ("seizureStartCol = {}, seizureEndCol = {}".format(seizureStartCol, seizureEndCol))
+        recordIDs = []
+        rowIndex = -1
+        for filename in filenames:
+            rowIndex += 1
+            if (not isinstance(filename, str)):
+                continue
+            # print ("filename = ", filename)
+            if (re.search('\.tse$', filename) != None):
+                recordID = os.path.basename(filename)
+                recordID = os.path.splitext(recordID)[0]
+                # try:
+                seizureStartTime = df_out.iloc[rowIndex,seizureStartCol]
+                seizureEndTime = df_out.iloc[rowIndex, seizureEndCol]
+                seizureType = df_out.iloc[rowIndex, seizureTypeCol]
+                if (not math.isnan(seizureStartTime)):
+                    self.recordInfo[recordID]['seizureStart'] = np.float32(seizureStartTime).item()
+                    self.recordInfo[recordID]['seizureEnd'] = np.float32(seizureEndTime).item()
+                    self.recordInfo[recordID]['seizureType'] = seizureType
+                # except:
+                #     print ("rowIndex = ", rowIndex)
+                # recordIDs.append(recordID)
+        # print (recordIDs)
+        # Get the column index for 'Seizure Time'
+        # for patientID in self.patientInfo.keys():
+        #     for recordID in self.patientInfo[patientID]['records']:
+        #         print (self.recordInfo[recordID])
+    
+    def saveToJsonFile(self, filePath):
+        print ("Saving to the json file ", filePath)
+
+        with open(filePath, 'w') as f:
+            for patientID in self.patientInfo.keys():
+                for recordID in self.patientInfo[patientID]['records']:
+                    try:
+                        f.write("\"" + recordID + "\" : ")
+                        f.write(json.dumps(self.recordInfo[recordID]))
+                        f.write("\n")
+                    except TypeError:
+                        print ("Record = ", self.recordInfo[recordID])
+
+    def isSeizurePresent(self, recordID, epochNum, epochLen, slidingWindowLen):
+        '''
+        epochLen and slidingWindowLen are in milliseconds
+        '''
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return False
+        # Convert epochNum to start and end datetime objects
+#         print ("recordID = ", recordID, ", epochNum =", epochNum, ", epochLen = ", epochLen,
+#                ", slidingWindowLen = ", slidingWindowLen)
+        epochStart = float(epochNum * slidingWindowLen / 1000)
+        epochEnd = epochStart + float(epochLen / 1000)
+
+        seizureStart = self.recordInfo[recordID]['seizureStart']
+        seizureEnd = self.recordInfo[recordID]['seizureEnd']
+        # seizureType = self.recordInfo[recordID]['seizureType']
+
+        if (( (epochStart >= seizureStart) and (epochStart <= seizureEnd)) or
+            ( (epochEnd >= seizureStart) and (epochEnd <= seizureEnd))):
+            return True
+
+        return False
+    
+    def getSeizuresVector(self, recordID, epochLen, slidingWindowLen, numEpochs):
+        '''
+        epochLen and slidingWindowLen are in milliseconds
+        '''
+
+        seizuresVector = np.zeros((numEpochs), dtype=np.int32)
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return seizuresVector
+        else:
+            seizureStart = self.recordInfo[recordID]['seizureStart']
+            seizureEnd = self.recordInfo[recordID]['seizureEnd']
+            # seizureType = self.recordInfo[recordID]['seizureType']
+            for i in range(numEpochs):
+                epochStart = float(i * slidingWindowLen / 1000)
+                epochEnd = epochStart + float(epochLen / 1000)
+                if (( (epochStart >= seizureStart) and (epochStart <= seizureEnd)) or
+                    ( (epochEnd >= seizureStart) and (epochEnd <= seizureEnd))):
+                        seizuresVector[i] = 1
+            return seizuresVector
