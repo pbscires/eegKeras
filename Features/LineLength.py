@@ -102,26 +102,7 @@ class LineLength(object):
         numEpochs = self.llDf.shape[0]
         numChannels = self.llDf.shape[1]
         print ("numEpochs = ", numEpochs, ", numChannels = ", numChannels)
-#         fileToWrite = '.'.join([outFilePath, recordFile, 'csv'])
         fileToWrite = outFilePath
         seizuresVector = tuhDataObj.getSeizuresVector(recordID, self.epochLength, self.slidingWindowLen, numEpochs)
-        # lldfWithSeizures = np.concatenate(self.llDf, seizuresVector, axis=1)
         self.llDf['SeizurePresent'] = seizuresVector
         self.llDf.to_csv(fileToWrite)
-        # f = open(fileToWrite, "w")
-        # for i in range(numEpochs):
-        #     if tuhDataObj.isSeizurePresent(recordID, i, self.epochLength, self.slidingWindowLen):
-        #         seizureValue = 1
-        #     else:
-        #         seizureValue = 0
-        #     strToWrite = ''
-        #     for columnName in self.llDf.columns.values:
-        #         if (strToWrite == ''):
-        #             strToWrite = str(self.llDf.loc[i, columnName])
-        #         else:
-        #             strToWrite = ','.join([strToWrite, str(self.llDf.loc[i, columnName])])
-
-        #     strToWrite = ','.join([strToWrite, str(seizureValue)])
-        #     f.write(strToWrite)
-        #     f.write("\n")
-        # f.close()

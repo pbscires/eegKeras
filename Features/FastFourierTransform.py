@@ -3,6 +3,7 @@
 '''
 from scipy import signal
 import numpy as np
+import pandas as pd
 from util.ElapsedTime import ElapsedTime
 from multiprocessing import Pool
 
@@ -78,12 +79,15 @@ class FFT(object):
         fftMat = np.zeros((numEpochWindows, numChannels * self.numDivisions))
         p = Pool()
         fftArrList = p.map(self.calculateFFTperEpoch, list(range(numEpochWindows)))
+        p.close()
         print ("len of fftArrList = ", len(fftArrList))
         i = 0
         for arr in fftArrList:
             fftMat[i,:] = arr
             i += 1
-        self.fftMat = fftMat
+        # self.fftMat = fftMat
+        print ("fftMat shape = ", fftMat.shape, "len(signal_labels) = ", len(signal_labels))
+        self.fftDf = pd.DataFrame(data = fftMat)
         print ("Time taken for processing one file = ", timer1.timeDiff())
 
 
@@ -131,25 +135,15 @@ class FFT(object):
 #                 for i in range(len(f)):
 #                     if (Pxx[i] > 10.0):
 #                         print ("f[", i, "] = ", f[i], ", Pxx[", i, "] = ", new_Pxx[i])
-        self.fftMat = fftMat
+        # self.fftMat = fftMat
+        self.fftDf = pd.DataFrame(data = fftMat, columns = signal_labels)
+        print (self.fftDf.shape)
 
-    def saveFFTWithSeizureInfo(self, outFilePath, seizures, recordFile):
-        print ("numEpochWindows = ", self.numEpochWindows, ", numChannels = ", self.numChannels,
-               ", numDivisions = ", self.numDivisions)
-#         fileToWrite = '.'.join([outFilePath, recordFile, 'csv'])
+    def saveFFTWithSeizureInfo(self, outFilePath, tuhDataObj, recordID):
+        numEpochs = self.fftDf.shape[0]
+        numChannels = self.fftDf.shape[1]
+        print ("numEpochs = ", numEpochs, ", numChannels = ", numChannels)
         fileToWrite = outFilePath
-        f = open(fileToWrite, "w")
-        for i in range(self.numEpochWindows):
-            if seizures.isSeizurePresent(recordFile, i, self.epochLength, self.slidingWindowLen):
-                seizureValue = 1
-            else:
-                seizureValue = -1
-            strToWrite = '' 
-#             for j in range(self.numChannels):
-#                 for k in range(self.numDivisions):
-#                     strToWrite = ','.join(['%f' % num for num in self.fftMat[i,:,:]])
-            strToWrite = ','.join(['%f' % num for num in self.fftMat[i,:]])
-            f.write(strToWrite)
-            f.write("\n")
-
-        f.close()
+        seizuresVector = tuhDataObj.getSeizuresVector(recordID, self.epochLength, self.slidingWindowLen, numEpochs)
+        self.fftDf['SeizurePresent'] = seizuresVector
+        self.fftDf.to_csv(fileToWrite)
