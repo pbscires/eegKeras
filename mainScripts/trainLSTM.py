@@ -1,32 +1,8 @@
 import sys
-from Models import StackedLSTM
+from Models import eegLSTM
 import json
 import os
-
-class TrainingConfigReader(object):
-    '''
-    Contains methods to read the *config.json files
-    '''
-    def __init__(self, configFile):
-        '''
-        Read the given config file into a json dictionary
-        '''
-        self.configFile = configFile
-        f = open(configFile, 'r')
-        self.jsonData = json.load(f)
-        f.close()
-    
-    def getTrainingDataDir(self):
-        return self.jsonData['trainingDataTopDir']
-    
-    def getModelOutputDir(self):
-        return self.jsonData['modelOutputDir']
-    
-    def getSavedModelPrefix(self):
-        return self.jsonData['savedModelFilePrefix']
-    
-    def getTrainingFiles(self):
-        return self.jsonData['trainingFiles']
+from util.TrainingConfigReader import TrainingConfigReader
 
 if __name__ == '__main__':
     if (len(sys.argv) < 2):
@@ -39,18 +15,26 @@ if __name__ == '__main__':
     trainingFiles = cfgReader.getTrainingFiles()
     modelOutputDir = cfgReader.getModelOutputDir()
     savedModelFilePrefix = cfgReader.getSavedModelPrefix()
+    lstmLayers = cfgReader.getLSTMLayers()
+    inSeqLen, outSeqLen = cfgReader.getSeqLens()
+
     print ("trainingDataTopDir = ", trainingDataTopDir)
     print ("trainingFiles = ", trainingFiles)
     print ("modelOutputDir = ", modelOutputDir)
     print ("savedModelFilePrefix = ", savedModelFilePrefix)
+    print ("LSTM layers = ", lstmLayers)
+    print ("inSeqLen = {}, outSeqLen = {}".format(inSeqLen, outSeqLen))
 
-    numFeatures = 19
-    stackedLSTM = StackedLSTM.StackedLSTM("encoder_decoder_sequence")
-    stackedLSTM.createModel(30, 10, numFeatures)
+    # numFeatures = 19
+    numFeatures = 168
+    lstmObj = eegLSTM.eegLSTM("encoder_decoder_sequence")
+    # lstmObj = eegLSTM.eegLSTM("stacked_LSTM")
+    lstmObj.createModel(inSeqLen, outSeqLen, numFeatures, lstmLayers)
 
     if (len(trainingFiles) == 1):
         trainingFile = trainingFiles[0]
         print ("trainingFile = ", trainingFile)
+<<<<<<< HEAD
         print ("Preparing training file")
         trainingSections = np.empty([len(trainingFile), len(trainingFile[0])])
         for row in trainingFile:
@@ -58,3 +42,8 @@ if __name__ == '__main__':
         stackedLSTM.prepareDataset_1file(os.path.join(trainingDataTopDir, trainingFile))
         stackedLSTM.fit()
         stackedLSTM.saveModel(modelOutputDir, savedModelFilePrefix)
+=======
+        lstmObj.prepareDataset_1file(os.path.join(trainingDataTopDir, trainingFile))
+        lstmObj.fit(epochs=20, batch_size=10)
+        lstmObj.saveModel(modelOutputDir, savedModelFilePrefix)
+>>>>>>> 678ec5e1b7a3c2f688a3aa133dfeda85477de0ed
