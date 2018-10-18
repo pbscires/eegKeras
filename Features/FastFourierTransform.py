@@ -144,6 +144,6 @@ class FFT(object):
         numChannels = self.fftDf.shape[1]
         print ("numEpochs = ", numEpochs, ", numChannels = ", numChannels)
         fileToWrite = outFilePath
-        seizuresVector = tuhDataObj.getSeizuresVector(recordID, self.epochLength, self.slidingWindowLen, numEpochs)
+        seizuresVector = tuhDataObj.getSeizuresVectorCSV(recordID, self.epochLength, self.slidingWindowLen, numEpochs)
         self.fftDf['SeizurePresent'] = seizuresVector
         self.fftDf.to_csv(fileToWrite)

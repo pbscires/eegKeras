@@ -77,10 +77,8 @@ if __name__ == '__main__':
     lstmObj = eegLSTM("encoder_decoder_sequence")
     # lstmObj = eegLSTM("stacked_LSTM")
     lstmObj.createModel(inSeqLen, outSeqLen, numFeatures, lstmLayers)
-    lstmObj.prepareDataset_fromTUHedf(tuhd, allRecords, priorSeconds, postSeconds)
-    lstmObj.fit(epochs, batchsize)
-    lstmObj.saveModel(modelOutputDir, recordID+"LSTM")
-    #     # for recordID in allRecords:
-    #     lstmObj.prepareDataset_fromTUHedf(tuhd, recordID, priorSeconds, postSeconds)
-    #     lstmObj.fit(epochs, batchsize)
-    #     lstmObj.saveModel(modelOutputDir, recordID+"LSTM")
+    # lstmObj.prepareDataset_fromTUHedf(tuhd, allRecords, priorSeconds, postSeconds)
+    # lstmObj.fit(epochs, batchsize)
+    # lstmObj.saveModel(modelOutputDir, recordID+"LSTM")
+    for recordID in allRecords:
+        lstmObj.applyPCAToDataset(tuhd, recordID)

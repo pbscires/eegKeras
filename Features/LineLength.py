@@ -103,6 +103,6 @@ class LineLength(object):
         numChannels = self.llDf.shape[1]
         print ("numEpochs = ", numEpochs, ", numChannels = ", numChannels)
         fileToWrite = outFilePath
-        seizuresVector = tuhDataObj.getSeizuresVector(recordID, self.epochLength, self.slidingWindowLen, numEpochs)
+        seizuresVector = tuhDataObj.getSeizuresVectorCSV(recordID, self.epochLength, self.slidingWindowLen, numEpochs)
         self.llDf['SeizurePresent'] = seizuresVector
         self.llDf.to_csv(fileToWrite)

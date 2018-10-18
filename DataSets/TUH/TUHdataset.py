@@ -256,7 +256,7 @@ class TUHdataset(object):
 
         return False
     
-    def getSeizuresVector(self, recordID, epochLen, slidingWindowLen, numEpochs):
+    def getSeizuresVectorCSV(self, recordID, epochLen, slidingWindowLen, numEpochs):
         '''
         epochLen and slidingWindowLen are in milliseconds
         '''
@@ -275,6 +275,26 @@ class TUHdataset(object):
                     ( (epochEnd >= seizureStart) and (epochEnd <= seizureEnd))):
                         seizuresVector[i] = 1
             return seizuresVector
+    
+    def getSeizuresVectorEDF(self, recordID):
+        numSamples = self.recordInfo[recordID]['numSamples']
+        sampleFrequency = self.recordInfo[recordID]['sampleFrequency']
+        seizuresVector = np.zeros((numSamples), dtype=np.int32)
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return seizuresVector
+        else:
+            seizureStart = self.recordInfo[recordID]['seizureStart']
+            seizureEnd = self.recordInfo[recordID]['seizureEnd']
+            # seizureType = self.recordInfo[recordID]['seizureType']
+            for i in range(numSamples):
+                sampleStartTime = float(i / sampleFrequency)
+                sampleEndTime = float((i+1) / sampleFrequency)
+                if (( (sampleStartTime >= seizureStart) and (sampleStartTime <= seizureEnd)) or
+                    ( (sampleEndTime >= seizureStart) and (sampleEndTime <= seizureEnd))):
+                        seizuresVector[i] = 1
+            return seizuresVector
+
+
     
     def getSeizureStartEndTimes(self, recordID):
         seizureStart = self.recordInfo[recordID]['seizureStart']

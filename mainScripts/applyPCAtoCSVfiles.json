@@ -1,0 +1,14 @@
+{
+    "n_components" : 4,
+    "do_scaling" : false,
+    "from_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/FFT",
+    "to_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/FFT_afterPCA",
+    "example1_from_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/LineLength",
+    "example1_to_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/LineLength_afterPCA",
+    "example2_from_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/FFT",
+    "example2_to_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/FFT_afterPCA",
+    "example3_from_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/LineLength",
+    "example3_to_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/LineLength_afterPCA",
+    "example4_from_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/FFT",
+    "example4_to_csv_dir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/FFT_afterPCA"
+}

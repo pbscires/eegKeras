@@ -10,6 +10,9 @@ import keras.backend as K
 import json
 import os
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.model_selection import train_test_split
 
 class eegLSTM(object):
     '''
@@ -163,6 +166,26 @@ class eegLSTM(object):
         return (dataset)
 
     def prepareDataset_fromTUHedf(self, tuhd, recordIDs, priorSeconds, postSeconds):
+        '''
+        This method creates self.X and self.y matrices from all the given
+        records.
+        self.X is of shape (numSamples, numInputTimeSteps, numFeatures)
+        self.y is of shape (numSamples, numOutputTimeSteps, numFeatures)
+        Each record corresponds to an EDF file with at most 1 seizure.
+        The Time step duration is determined by sample frequency when the
+          EDF file was recorded.
+        This method supports selectively including only those sequences that
+        lead to a seizure.
+
+        Input Parameters:
+        recordIDs -- list of records from which samples have to be created
+        priorSeconds, postSeconds -- determine which rows from the dataset
+               will be used for training the model. e.g., if the seizure
+               occured from 200 to 220 seconds and priorSeconds = 60, 
+               postSeconds = 10, then the data from 140th (200-60) second to 
+               230th (220+10) second will be used for training the model.
+
+        '''
         totalSamples = 0
         recordsWithSeizures = []
         for recordID in recordIDs:
@@ -205,6 +228,27 @@ class eegLSTM(object):
         self.X = allRecords_X
         self.y = allRecords_y
         print ("self.X.shape = ", self.X.shape, ",self.y.shape = ", self.y.shape)
+    
+    def applyPCAToDataset(self, tuhd, recordID):
+        '''
+        This method was created to test the application of PCA to raw data.
+        This is not the right way to do PCA; it is better to do PCA after the
+        features are extracted.
+        So, this method may eventually be removed.
+        '''
+        dataset = tuhd.getRecordData(recordID)
+        seizuresVec = tuhd.getSeizuresVectorEDF(recordID)
+        X_train, X_test, y_train, y_test = train_test_split(dataset, seizuresVec, 
+                    test_size=0.2, random_state=0)
+        # sc = StandardScaler()
+        # X_train = sc.fit_transform(X_train)
+        # X_test = sc.transform(X_test)
+        pca = PCA(n_components=4)
+        X_train = pca.fit_transform(X_train)
+        X_test = pca.transform(X_test)
+        explained_variance = pca.explained_variance_ratio_
+        print ("explained_variance = ", explained_variance)
+        print (X_train)
    
     def fit(self, epochs=50, batch_size=10):
         self.model.fit(self.X, self.y, validation_split=0.33, epochs=epochs, batch_size=batch_size, verbose=2)
