@@ -5,6 +5,18 @@ from Features.LineLength import LineLength
 from Features.FastFourierTransform import FFT
 import time
 
+def createJsonFile():
+    rootDir = sys.argv[1]
+    xlsxFilePath = sys.argv[2]
+    print ("rootDir = {}, xlsxFilePath = {}".format(rootDir, xlsxFilePath))
+
+    tuhd = TUHdataset(rootDir, xlsxFilePath)
+    tuhd.summarizeDatset()
+    tuhd.getSeizuresSummary()
+    jsonFilePath = sys.argv[3]
+    print ("json file path = ", jsonFilePath)
+    tuhd.saveToJsonFile(jsonFilePath)
+
 def createLLcsvs():
     rootDir = sys.argv[1]
     xlsxFilePath = sys.argv[2]
@@ -50,5 +62,8 @@ def createFFTcsvs():
         fftObj.saveFFTWithSeizureInfo(filePath, tuhd, recordID)
         if (curRecordNum % 20 == 0):
             time.sleep(60) # Sleep for a minute
+
 if __name__ == '__main__':
-    createFFTcsvs()
+#     createJsonFile()
+        tuhd = TUHdataset('', '')
+        tuhd.loadJsonFile(sys.argv[1])

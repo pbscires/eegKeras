@@ -3,57 +3,84 @@ import pyedflib
 import re
 import sys
 import os
-
-class EEGRecord(object):
-    '''
-    This class represents a single EEG record. i.e. one .edf file wich contains
-    values for 23 channels over a period of 1 hour. 
-    '''
-
-
-    def __init__(self, dirPath, subjectName):
-        '''
-        Constructor
-        '''
-        self.dirPath = dirPath
-        # self.edfFilePath = os.path.join(dirPath, )
-        self.subjectName = subjectName
-    
-    def loadFile(self):
-        f = pyedflib.EdfReader(self.filePath)
-        self.numChannels = f.signals_in_file
-        print ("number of signals in file = ", self.numChannels)
-        self.signal_labels = f.getSignalLabels()
-        print ("signal labels = ", self.signal_labels)
-        # EEG data is valid only when the signal label has '-REF' at the end
-        self.other_labels = []
-        columnsToDel = []
-        for i in np.arange(self.numChannels):
-            if (re.search('\-REF', self.signal_labels[i]) == None):
-                self.other_labels.append(self.signal_labels[i])
-                columnsToDel.append(i)
-                self.numChannels -= 1
-        self.signal_labels = np.delete(self.signal_labels, columnsToDel, axis=0)
-
-        # numSamples = 3600 * 256 = 921,600
-        self.numSamples = f.getNSamples()[0]
-        # sampleFrequency = 256
-        self.sampleFrequency = f.getSampleFrequency(0)
-        print ("numSample = {}, sampleFrequency = {}".format(self.numSamples, self.sampleFrequency))
-        self.sigbufs = np.zeros((self.numChannels, self.numSamples))
-        for i in np.arange(self.numChannels):
-            try:
-                self.sigbufs[i, :] = f.readSignal(i)
-            except ValueError:
-                print ("Failed to channel {} with name {}".format(i, self.signal_labels[i]))
-        # sigbufs above is a 23 x 921600 matrix
-        # transpose it so that it becomes 921600 x 23 matrix
-        self.sigbufs = self.sigbufs.transpose()
-        print (self.sigbufs)
+from util.TrainingConfigReader import TrainingConfigReader
+from DataSets.TUH.TUHdataset import TUHdataset
+from Models.eegLSTM import eegLSTM
 
 if __name__ == '__main__':
-    filePath = sys.argv[1]
-    subjectName = os.path.basename(filePath)
-    print ("filePath = {}, subjectName = {}".format(filePath, subjectName))
-    tuhEegRec = EEGRecord(sys.argv[1], subjectName)
-    tuhEegRec.loadFile()
+    if (len(sys.argv) < 2):
+        print ("Error! Invalid number of arguments")
+        exit (-1)
+    configFile = sys.argv[1]
+    print ("ConfigFile = {}".format(configFile))
+    cfgReader = TrainingConfigReader(configFile)
+    trainingDataTopDir = cfgReader.getTrainingDataDir()
+    trainingRecords = cfgReader.getTrainingRecords()
+    modelOutputDir = cfgReader.getModelOutputDir()
+    lstmLayers = cfgReader.getLSTMLayers()
+    inSeqLen, outSeqLen = cfgReader.getSeqLens()
+    dataSubset = cfgReader.get_datasubset()
+    epochs = cfgReader.getEpochs()
+    batchsize = cfgReader.getBatchsize()
+    recordInfoJson = cfgReader.getRecordInfoJsonFile()
+
+    print ("trainingDataTopDir = ", trainingDataTopDir)
+    if (trainingRecords[0] == "all"):
+        print ("all the files will be used for training")
+    else:
+        print ("training files = ", trainingRecords)
+    print ("modelOutputDir = ", modelOutputDir)
+    print ("LSTM layers = ", lstmLayers)
+    print ("inSeqLen = {}, outSeqLen = {}".format(inSeqLen, outSeqLen))
+    print ("dataSubset = ", dataSubset)
+    print ("epochs = ", epochs)
+    print ("batchsize = ", batchsize)
+    print ("recordInfoJsonFile = ", recordInfoJson)
+
+    allRecords = []
+    tuhd = TUHdataset(trainingDataTopDir, '')
+    # tuhd.summarizeDatset()
+    tuhd.loadJsonFile(recordInfoJson)
+
+    if (trainingRecords[0] == "all"):
+        allRecords = list(tuhd.recordInfo.keys())
+    elif (re.search("records for patient (\d+)", trainingRecords[0]) != None):
+        m = re.match("records for patient (\d+)", trainingRecords[0])
+        patientID = m.group(1)
+        print ("finding records for patient ID", patientID)
+        allRecords = tuhd.patientInfo[patientID]['records']
+    else:
+        allRecords = trainingRecords
+
+    print ("Number of records to use for training = ", len(allRecords))
+
+    if (dataSubset == "fulldata"):
+        print ("Will be training on full data")
+        priorSeconds = postSeconds = -1
+    elif (re.search("seizure\-(\d+), seizure\+(\d+)", dataSubset) != None):
+        m = re.match("seizure\-(\d+), seizure\+(\d+)", dataSubset)
+        priorSeconds = int(m.group(1))
+        postSeconds = int(m.group(2))
+        print ("data subset = [seizure-" + str(priorSeconds), ", seizure+" + str(postSeconds) + "]")
+    
+    # Verify that all the records have same features
+    features = tuhd.recordInfo[allRecords[0]]['channelLabels']
+    featuresSet = set(features)
+    for recordID in allRecords:
+        tmpSet = set(tuhd.recordInfo[recordID]['channelLabels'])
+        xorSet = featuresSet.symmetric_difference(tmpSet)
+        if (len(xorSet) > 0):
+            print ("features are not common between", allRecords[0], "and", recordID)
+            exit (-1)
+    print ("features are common between all the records!")
+    numFeatures = len(featuresSet)
+    lstmObj = eegLSTM("encoder_decoder_sequence")
+    # lstmObj = eegLSTM("stacked_LSTM")
+    lstmObj.createModel(inSeqLen, outSeqLen, numFeatures, lstmLayers)
+    lstmObj.prepareDataset_fromTUHedf(tuhd, allRecords, priorSeconds, postSeconds)
+    lstmObj.fit(epochs, batchsize)
+    lstmObj.saveModel(modelOutputDir, recordID+"LSTM")
+    #     # for recordID in allRecords:
+    #     lstmObj.prepareDataset_fromTUHedf(tuhd, recordID, priorSeconds, postSeconds)
+    #     lstmObj.fit(epochs, batchsize)
+    #     lstmObj.saveModel(modelOutputDir, recordID+"LSTM")

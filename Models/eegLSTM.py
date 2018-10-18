@@ -116,7 +116,96 @@ class eegLSTM(object):
         print ("X.shape = {}, y.shape = {}".format(X.shape, y.shape))
         self.X = X
         self.y = y
-    
+
+    def _getNumRows(self, tuhd, recordID, priorSeconds, postSeconds):
+        if ('seizureStart' in tuhd.recordInfo[recordID].keys()):
+            (seizureStart, seizureEnd) = tuhd.getSeizureStartEndTimes(recordID)
+        else:
+            return (0) # This record has no seizure data
+
+        numRows = tuhd.recordInfo[recordID]['numSamples']
+        numFeatures = tuhd.recordInfo[recordID]['numChannels']
+        print ("numRows = ", numRows, ", numFeatures = ", numFeatures)
+        startSec = seizureStart - priorSeconds
+        endSec = seizureEnd + postSeconds
+        startRowNum = int(startSec * tuhd.recordInfo[recordID]['sampleFrequency'])
+        endRowNum = int(endSec * tuhd.recordInfo[recordID]['sampleFrequency'])
+        if (startRowNum < 0):
+            startRowNum = 0
+        if (endRowNum > numRows):
+            endRowNum = numRows
+        numRows = endRowNum - startRowNum + 1
+        print ("numRows = ", numRows)
+        return (numRows)
+
+    def _getDataset(self, tuhd, recordID, priorSeconds, postSeconds):
+        dataset = tuhd.getRecordData(recordID)
+        print (dataset)
+        if ('seizureStart' in tuhd.recordInfo[recordID].keys()):
+            (seizureStart, seizureEnd) = tuhd.getSeizureStartEndTimes(recordID)
+        else:
+            return (None) # This record has no seizure data
+        
+        numRows = dataset.shape[0]
+        numFeatures = self.numFeatures
+        print ("numRows = ", numRows, ", numFeatures = ", numFeatures)
+        startSec = seizureStart - priorSeconds
+        endSec = seizureEnd + postSeconds
+        startRowNum = int(startSec * tuhd.recordInfo[recordID]['sampleFrequency'])
+        endRowNum = int(endSec * tuhd.recordInfo[recordID]['sampleFrequency'])
+        if (startRowNum < 0):
+            startRowNum = 0
+        if (endRowNum > numRows):
+            endRowNum = numRows
+        numRows = endRowNum - startRowNum + 1
+        print ("numRows = ", numRows)
+        dataset = dataset[startRowNum:endRowNum+1]
+        return (dataset)
+
+    def prepareDataset_fromTUHedf(self, tuhd, recordIDs, priorSeconds, postSeconds):
+        totalSamples = 0
+        recordsWithSeizures = []
+        for recordID in recordIDs:
+            curNumRows = self._getNumRows(tuhd, recordID, priorSeconds, postSeconds)
+            if (curNumRows > 0):
+                totalSamples += curNumRows
+                recordsWithSeizures.append(recordID)
+        print ("total number of Samples = ", totalSamples)
+        print ("total number of records = ", len(recordIDs))
+        print ("Number of records with seizures = ", len(recordsWithSeizures))
+        inSeqLen = self.inSeqLen
+        outSeqLen = self.outSeqLen
+        numFeatures = self.numFeatures
+        allRecords_X = np.empty([totalSamples, inSeqLen, numFeatures])
+        allRecords_y = np.empty([totalSamples, outSeqLen, numFeatures])
+        curInd = 0
+
+        for recordID in recordsWithSeizures:
+            dataset = self._getDataset(tuhd, recordID, priorSeconds, postSeconds)
+            numRows = dataset.shape[0]
+            numFeatures = self.numFeatures
+            numSamples = numRows - (inSeqLen + outSeqLen)
+            X = np.empty([numSamples, inSeqLen, numFeatures])
+            y = np.empty([numSamples, outSeqLen, numFeatures])
+            for i in range(numSamples):
+                inSeqEnd = i + inSeqLen
+                outSeqEnd = inSeqEnd + outSeqLen
+                try:
+                    # X[i] = np.flipud(dataset[i:inSeqEnd,:])
+                    X[i] = dataset[i:inSeqEnd,:]
+                    y[i] = dataset[inSeqEnd:outSeqEnd,:]
+                except ValueError:
+                    print ("i = {}, inSeqEnd = {}, outSeqEnd = {}".format(i, inSeqEnd, outSeqEnd))
+            
+            print ("X.shape = {}, y.shape = {}".format(X.shape, y.shape))
+            endInd = curInd + X.shape[0]
+            allRecords_X[curInd:endInd] = X
+            allRecords_y[curInd:endInd] = y
+            curInd = endInd
+        self.X = allRecords_X
+        self.y = allRecords_y
+        print ("self.X.shape = ", self.X.shape, ",self.y.shape = ", self.y.shape)
+   
     def fit(self, epochs=50, batch_size=10):
         self.model.fit(self.X, self.y, validation_split=0.33, epochs=epochs, batch_size=batch_size, verbose=2)
 

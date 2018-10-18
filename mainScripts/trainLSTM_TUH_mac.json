@@ -1,0 +1,18 @@
+{
+    "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_data",
+    "FeaturesToUse" : ["LineLength"],
+    "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_data/recordInfo.json",
+    "traininRecords_example1" : ["all"],
+    "traininRecords_example2" : ["records for patient 00006440"],
+    "traininRecords_example3" : ["00006440_s004_t000", "00006440_s004_t001"],
+    "trainingRecords" : ["records for patient 00006440"],
+    "data_subset_example1" : "fulldata",
+    "data_subset_example2" : "seizure-100, seizure+20",
+    "data_subset" : "seizure-100, seizure+20",
+    "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
+    "lstm_layers" : [200, 150],
+    "inSeqLen" : 20,
+    "outSeqLen" : 1,
+    "epochs" : 20,
+    "batchsize" : 10
+}

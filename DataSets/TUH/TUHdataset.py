@@ -149,6 +149,8 @@ class TUHdataset(object):
         # sigbufs above is a 23 x 921600 matrix
         # transpose it so that it becomes 921600 x 23 matrix
         sigbufs = sigbufs.transpose()
+        f._close()
+        del(f)
         # print (sigbufs)
         return (sigbufs)
     
@@ -197,14 +199,40 @@ class TUHdataset(object):
         print ("Saving to the json file ", filePath)
 
         with open(filePath, 'w') as f:
+            f.write("{\n")
             for patientID in self.patientInfo.keys():
                 for recordID in self.patientInfo[patientID]['records']:
                     try:
                         f.write("\"" + recordID + "\" : ")
                         f.write(json.dumps(self.recordInfo[recordID]))
-                        f.write("\n")
+                        f.write(",\n")
                     except TypeError:
                         print ("Record = ", self.recordInfo[recordID])
+            f.write("\"EOFmarker\" : \"EOF\" }\n")
+
+    def loadJsonFile(self, filePath):
+        print ("Loading from json file ", filePath)
+        f = open(filePath, 'r')
+        self.recordInfo = json.load(f)
+        f.close()
+        del (self.recordInfo['EOFmarker'])
+
+        # Build self.patientInfo
+        self.numEdfs = len(self.recordInfo)
+        patientInfo = {}
+        for recordID in self.recordInfo.keys():
+            patientID = self.recordInfo[recordID]['patientID']
+            sessionID = self.recordInfo[recordID]['sessionID']
+            if (patientID not in patientInfo.keys()):
+                patientInfo[patientID] = {}
+                patientInfo[patientID]['records'] = [recordID]
+                patientInfo[patientID]['sessions'] = [sessionID]
+            else:
+                patientInfo[patientID]['records'].append(recordID)
+                patientInfo[patientID]['sessions'].append(sessionID)
+        #     print ("self.recordInfo[" + recordID + "][\'numChannels\'] = ", self.recordInfo[recordID]['numChannels'])
+        self.patientInfo = patientInfo
+        self.numPatients = len(self.patientInfo)
 
     def isSeizurePresent(self, recordID, epochNum, epochLen, slidingWindowLen):
         '''
@@ -247,3 +275,8 @@ class TUHdataset(object):
                     ( (epochEnd >= seizureStart) and (epochEnd <= seizureEnd))):
                         seizuresVector[i] = 1
             return seizuresVector
+    
+    def getSeizureStartEndTimes(self, recordID):
+        seizureStart = self.recordInfo[recordID]['seizureStart']
+        seizureEnd = self.recordInfo[recordID]['seizureEnd']
+        return (seizureStart, seizureEnd)
