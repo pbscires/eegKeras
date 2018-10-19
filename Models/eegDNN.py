@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.models import model_from_json
@@ -55,15 +56,18 @@ class eegDNN(object):
         return (self.model)
 
     def prepareDataset_1file(self, filePath):
-        dataset = np.loadtxt(filePath, delimiter=',')
+        # dataset = np.loadtxt(filePath, delimiter=',')
+        dataset = pd.read_csv(filePath)
         numRows = dataset.shape[0]
-        numFeatures = dataset.shape[1] - 1
+        numFeatures = dataset.shape[1] - 2
         print ("numRows = ", numRows, ", numFeatures = ", numFeatures)
         self.dataset = dataset
         self.numRows = numRows
         self.numFeatures = numFeatures
-        self.X = dataset[:,:numFeatures]
-        self.y = dataset[:,numFeatures]
+        self.X = dataset.iloc[:,range(numFeatures)]
+        self.y = dataset.iloc[:,[numFeatures]]
+        # self.X = dataset[:,:numFeatures]
+        # self.y = dataset[:,numFeatures]
         print ("X.shape = {}, y.shape = {}".format(self.X.shape, self.y.shape))
 
     def fit(self):

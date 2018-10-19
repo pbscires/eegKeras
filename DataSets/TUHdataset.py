@@ -10,19 +10,21 @@ import json
 
 class TUHdataset(object):
     '''
-    This class represents a single EEG record. i.e. one .edf file wich contains
-    values for 23 channels over a period of 1 hour. 
+    This class contains several methods that can process the EDF files in the TUH dataset.
+    It serves 2 purposes:
+    1) to create (and later load) a json file that contains the metadata for the entire TUH data.
+    2) to read a single EDF file and extract signal values from that file.
     '''
 
 
-    def __init__(self, rootDir, csvFilePath):
+    def __init__(self, rootDir, xlsxFilePath):
         '''
         Constructor
         '''
         self.rootDir = rootDir
         print ("Top level directory for the dataset = ", rootDir)
-        self.csvFilePath = csvFilePath
-        print ("CSV File = ", csvFilePath)
+        self.xlsxFilePath = xlsxFilePath
+        print ("CSV File = ", xlsxFilePath)
         # self.edfFilePath = os.path.join(dirPath, )
         # self.subjectName = subjectName
     
@@ -64,7 +66,6 @@ class TUHdataset(object):
         # First summarize from the directory
         numPatients = 0
         numPatientSessions = 0
-        numEdfs = 0
         numEdfs = 0
         patientInfo = {}
         recordInfo = {}
@@ -156,9 +157,9 @@ class TUHdataset(object):
     
     def getSeizuresSummary(self):
         '''
-        Read the CSV file and summarize the seizure information on per-record basis
+        Read the xlsx file and summarize the seizure information on per-record basis
         '''
-        with open(self.csvFilePath, 'rb') as f:
+        with open(self.xlsxFilePath, 'rb') as f:
             df_out = pd.read_excel(f, sheet_name='train', usecols="A:O", dtype=object)
         
         print (df_out)

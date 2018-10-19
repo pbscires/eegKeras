@@ -1,0 +1,32 @@
+{
+    "DNN" : {
+        "testDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
+        "savedModelFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_DNN.json",
+        "savedWeightsFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_DNN.h5",
+        "testFiles" : ["LineLength.chb03_01.edf.csv", "LineLength.chb03_02.edf.csv",
+            "LineLength.chb03_03.edf.csv", "LineLength.chb03_04.edf.csv", "LineLength.chb03_06.edf.csv",
+            "LineLength.chb03_07.edf.csv", "LineLength.chb03_08.edf.csv", "LineLength.chb03_09.edf.csv",
+            "LineLength.chb03_10.edf.csv", "LineLength.chb03_11.edf.csv", "LineLength.chb03_12.edf.csv",
+            "LineLength.chb03_13.edf.csv", "LineLength.chb03_14.edf.csv", "LineLength.chb03_15.edf.csv"
+        ]
+    },
+    "LSTM" : {
+        "testDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/FFT",
+        "savedModelFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/FFT_chb03_01_LSTM.json",
+        "savedWeightsFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/FFT_chb03_01_LSTM.h5",
+        "testFiles" : ["FFT.chb03_02.edf.csv", "FFT.chb03_03.edf.csv"],
+        "inSeqLen" : 20,
+        "outSeqLen" : 1
+    },
+    "LSTM_and_DNN" : {
+        "savedModelLSTM" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_LSTM.json",
+        "savedWeightsLSTM" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_LSTM.h5",
+        "savedModelDNN" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_DNN.json",
+        "savedWeightsDNN" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_DNN.h5",
+        "testDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
+        "testFiles" : ["LineLength.chb03_02.edf.csv", "LineLength.chb03_03.edf.csv"],
+        "timesteps_to_predict" : 10,
+        "inSeqLen" : 30,
+        "outSeqLen" : 5
+    }
+}

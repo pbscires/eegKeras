@@ -1,6 +1,0 @@
-{
-    "inputModelDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
-    "evaluationDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
-    "inputModelFilePrefix" : "chb03_01",
-    "evaluationFiles" : ["LineLength.chb03_02.edf.csv"]
-}

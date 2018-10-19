@@ -229,27 +229,6 @@ class eegLSTM(object):
         self.y = allRecords_y
         print ("self.X.shape = ", self.X.shape, ",self.y.shape = ", self.y.shape)
     
-    def applyPCAToDataset(self, tuhd, recordID):
-        '''
-        This method was created to test the application of PCA to raw data.
-        This is not the right way to do PCA; it is better to do PCA after the
-        features are extracted.
-        So, this method may eventually be removed.
-        '''
-        dataset = tuhd.getRecordData(recordID)
-        seizuresVec = tuhd.getSeizuresVectorEDF(recordID)
-        X_train, X_test, y_train, y_test = train_test_split(dataset, seizuresVec, 
-                    test_size=0.2, random_state=0)
-        # sc = StandardScaler()
-        # X_train = sc.fit_transform(X_train)
-        # X_test = sc.transform(X_test)
-        pca = PCA(n_components=4)
-        X_train = pca.fit_transform(X_train)
-        X_test = pca.transform(X_test)
-        explained_variance = pca.explained_variance_ratio_
-        print ("explained_variance = ", explained_variance)
-        print (X_train)
-   
     def fit(self, epochs=50, batch_size=10):
         self.model.fit(self.X, self.y, validation_split=0.33, epochs=epochs, batch_size=batch_size, verbose=2)
 
