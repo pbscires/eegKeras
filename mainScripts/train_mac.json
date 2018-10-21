@@ -2,45 +2,129 @@
     "DNN_CHB_LL" : {
         "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/LineLength",
         "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/recordInfo.json",
         "trainingRecords_example1" : ["all"],
         "trainingRecords_example2" : ["records for patient chb03"],
         "trainingRecords_example3" : ["chb03_01", "chb03_02"],
-        "trainingRecords" : ["records for patient chb03"]
+        "trainingRecords" : ["records for patient chb03"],
+        "dnn_layers" : [10, 20 ,10],
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3,
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
     },
     "DNN_CHB_FFT" : {
         "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/FFT_afterPCA",
         "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
-        "trainingFiles" : ["all"]
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/recordInfo.json",
+        "trainingRecords" : ["records for patient chb03"],
+        "dnn_layers" : [10, 20 ,10],
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3,
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
     },
     "DNN_TUH_LL" : {
         "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/LineLength_afterPCA",
         "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
-        "trainingFiles" : ["all"],
-        "savedModelFilePrefix" : "LL_chb03_01"
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_data/recordInfo.json",
+        "trainingRecords" : ["all"],
+        "dnn_layers" : [10, 20 ,10],
+        "savedModelFilePrefix" : "LL_chb03_01",
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3,
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
     },
     "DNN_TUH_FFT" : {
         "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/FFT_afterPCA",
         "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
-        "trainingFiles" : ["all"],
-        "savedModelFilePrefix" : "LL_chb03_01"
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_data/recordInfo.json",
+        "trainingRecords" : ["all"],
+        "dnn_layers" : [10, 20 ,10],
+        "savedModelFilePrefix" : "LL_chb03_01",
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3,
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
     },
-    "LSTM" : {
-        "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/FFT",
+    "LSTM_CHB_LL" : {
+        "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/LineLength",
         "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
-        "trainingFiles" : ["FFT.chb03_01.edf.csv"],
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/recordInfo.json",
+        "trainingRecords" : ["records for patient chb03"],
         "savedModelFilePrefix" : "FFT_chb03_01",
         "lstm_layers" : [200, 150],
         "inSeqLen" : 20,
-        "outSeqLen" : 1
+        "outSeqLen" : 1,
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3,
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
     },
-    "LSTM_CHB" : {
-        "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/FFT",
+    "LSTM_CHB_FFT" : {
+        "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/FFT",
         "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
-        "trainingFiles" : ["FFT.chb03_01.edf.csv"],
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/chb_output/recordInfo.json",
+        "trainingRecords" : ["records for patient chb03"],
         "savedModelFilePrefix" : "FFT_chb03_01",
         "lstm_layers" : [200, 150],
         "inSeqLen" : 20,
-        "outSeqLen" : 1
+        "outSeqLen" : 1,
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3,
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
+    },
+    "LSTM_TUH_LL" : {
+        "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/LineLength",
+        "FeaturesToUse" : ["LineLength"],
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_data/recordInfo.json",
+        "csvSummaryJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/LineLength.summary.json",
+        "trainingRecords_example1" : ["all"],
+        "trainingRecords_example2" : ["records for patient 00006440"],
+        "trainingRecords_example3" : ["00006440_s004_t000", "00006440_s004_t001"],
+        "trainingRecords" : ["records for patient 00006440"],
+        "data_subset_example1" : "fulldata",
+        "data_subset_example2" : "seizure-100, seizure+20",
+        "data_subset" : "seizure-100, seizure+20",
+        "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
+        "lstm_layers" : [200, 150],
+        "inSeqLen" : 20,
+        "outSeqLen" : 2,
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3,
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
+    },
+    "LSTM_TUH_FFT" : {
+        "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/FFT",
+        "FeaturesToUse" : ["LineLength"],
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_data/recordInfo.json",
+        "csvSummaryJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/FFT.summary.json",
+        "trainingRecords_example1" : ["all"],
+        "trainingRecords_example2" : ["records for patient 00006440"],
+        "trainingRecords_example3" : ["00006440_s004_t000", "00006440_s004_t001"],
+        "trainingRecords" : ["records for patient 00006440"],
+        "data_subset_example1" : "fulldata",
+        "data_subset_example2" : "seizure-100, seizure+20",
+        "data_subset" : "seizure-100, seizure+20",
+        "modelOutputDir" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels",
+        "lstm_layers" : [200, 150],
+        "inSeqLen" : 20,
+        "outSeqLen" : 1,
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3,
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
     },
     "LSTM_TUH" : {
         "trainingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_data",
@@ -57,7 +141,8 @@
         "lstm_layers" : [200, 150],
         "inSeqLen" : 20,
         "outSeqLen" : 1,
-        "epochs" : 20,
-        "batchsize" : 10
+        "training_epochs" : 20,
+        "training_batchsize" : 10,
+        "validation_split" : 0.3
     }
 }

@@ -70,8 +70,8 @@ class eegDNN(object):
         # self.y = dataset[:,numFeatures]
         print ("X.shape = {}, y.shape = {}".format(self.X.shape, self.y.shape))
 
-    def fit(self):
-        self.model.fit(self.X, self.y, validation_split=0.33, epochs=50, batch_size=10, verbose=2)
+    def fit(self, epochs=50, batch_size=10, validation_split=0.33):
+        self.model.fit(self.X, self.y, validation_split=validation_split, epochs=epochs, batch_size=batch_size, verbose=2)
 
     def evaluate(self):
         score = self.model.evaluate(self.X, self.y, verbose=2)

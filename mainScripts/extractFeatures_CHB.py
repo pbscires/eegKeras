@@ -8,7 +8,7 @@ import time
 # This script gathers data from the seizures.json file and the EDF files and
 # creates a recordInfo.json file.
 
-def createJsonFile():
+def createRecordInfoFromSeizureJsonFile():
     rootDir = sys.argv[1]
     seizuresJsonFile = sys.argv[2]
     print ("rootDir = {}, seizuresJsonFile = {}".format(rootDir, seizuresJsonFile))
@@ -35,5 +35,5 @@ if __name__ == '__main__':
     #     is succesfully created, it does not have to be 
     #     invoked again.
     # ------uncomment beginning at the line below------------
-    createJsonFile()
+    createRecordInfoFromSeizureJsonFile()
     # ------uncomment ending at the line above---------------

@@ -1,11 +1,14 @@
 import sys
 import os
+import re
 from DataSets.TUHdataset import TUHdataset
 from Features.LineLength import LineLength
 from Features.FastFourierTransform import FFT
 import time
+import pandas as pd
+import json
 
-def createJsonFile():
+def createRecordInfoFromXlsxFile():
     rootDir = sys.argv[1]
     xlsxFilePath = sys.argv[2]
     print ("rootDir = {}, xlsxFilePath = {}".format(rootDir, xlsxFilePath))
@@ -73,6 +76,53 @@ def createFFTcsvs():
             time.sleep(60) # Sleep for a minute
     return
 
+def _saveToJsonFile(recordInfo, filePath):
+    print ("Saving to the json file ", filePath)
+
+    with open(filePath, 'w') as f:
+        f.write("{\n")
+        for recordID in recordInfo.keys():
+            try:
+                f.write("\"" + recordID + "\" : ")
+                f.write(json.dumps(recordInfo[recordID]))
+                f.write(",\n")
+            except TypeError:
+                print ("Record = ", recordInfo[recordID])
+        f.write("\"EOFmarker\" : \"EOF\" }\n")
+
+def summarizeCSVs():
+    rootDir = sys.argv[1]
+    summaryJsonFile = sys.argv[2]
+    print ("rootDir={}, summaryJsonFile={}".format(rootDir, summaryJsonFile))
+    recordInfo = {}
+    for root, dirs, files in os.walk(rootDir):
+        for filename in files:
+            if (re.search("\.csv$", filename) != None):
+                recordID = os.path.splitext(os.path.basename(filename))[0]
+                recordInfo[recordID] = {}
+                recordInfo[recordID]['CSVpath'] = os.path.join(root, filename)
+    
+    # Get the information for each csv file
+    for recordID in recordInfo.keys():
+        filePath = recordInfo[recordID]['CSVpath']
+        dataset = pd.read_csv(filePath)
+        # print ("dataset.shape = ", dataset.shape)
+        numRows = dataset.shape[0]
+        # To get numFeatures, subtract 2 from dataset.shape[1] so that 
+        # the index column and the seizuresPresent Column are not counted.
+        numFeatures = dataset.shape[1] - 2 
+        # print ("recordID={}, filePath={}, numRows={}, numFeatures={}".format(recordID,
+        #     filePath, numRows, numFeatures))
+        # real_data = dataset.values
+        # real_data = real_data[:,1:numFeatures+1]
+        # print ("Shape of real_data = ", real_data.shape)
+        recordInfo[recordID]['numRows'] = numRows
+        recordInfo[recordID]['numFeatures'] = numFeatures
+        recordInfo[recordID]['containsHeaderRow'] = True
+        recordInfo[recordID]['containsIndexCol'] = True
+    _saveToJsonFile(recordInfo, summaryJsonFile)
+    
+
 if __name__ == '__main__':
     # Uncomment one of the following code blocks
 
@@ -82,12 +132,12 @@ if __name__ == '__main__':
     #         <Filepath of the xlsx file listing seizures>
     #     The xlsx file is in the top level directory of 
     #      the TUH data with the name "seizures_v30r.xlsx"
-    #  Note:  createJsonFile() needs to be run only once.
+    #  Note:  createRecordInfoFromXlsxFile() needs to be run only once.
     #     After the json file summarizing all the records
     #     is succesfully created, it does not have to be 
     #     invoked again.
     # ------uncomment beginning at the line below------------
-    # createJsonFile()
+    # createRecordInfoFromXlsxFile()
     # ------uncomment ending at the line above---------------
 
 
@@ -124,5 +174,12 @@ if __name__ == '__main__':
     #         <Filepath of the xlsx file listing seizures>
     #         <path to the directory where csv files have to be stored>
     # ------uncomment beginning at the line below------------
-    createFFTcsvs()
+    # createFFTcsvs()
+    # ------uncomment ending at the line above---------------
+
+    # -------------------------------------------------
+    # Summarize all the CSV files in a given directory into a json file.
+    # Inputs: <top-directory-ofCSV-files> <summaryJsonFile>
+    # ------uncomment beginning at the line below------------
+    summarizeCSVs()
     # ------uncomment ending at the line above---------------

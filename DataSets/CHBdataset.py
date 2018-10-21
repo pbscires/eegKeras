@@ -7,22 +7,23 @@ import sys
 import os
 import math
 import json
+from DataSets.BaseDataset import BaseDataset
 
-class CHBdataset(object):
+class CHBdataset(BaseDataset):
     '''
     This class contains several methods that can process the EDF files in the CHB dataset.
     It serves 2 purposes:
     1) to create (and later load) a json file that contains the metadata for the entire TUH data.
     2) to read a single EDF file and extract signal values from that file.
     '''
-    def __init__(self, rootDir, seizureJsonFilePath):
+    def __init__(self, rootDir, seizureFilePath):
         '''
         Constructor
         '''
         self.rootDir = rootDir
         print ("Top level directory for the dataset = ", rootDir)
-        self.seizureJsonFilePath = seizureJsonFilePath
-        print ("Seizures JSON File = ", seizureJsonFilePath)
+        self.seizureFilePath = seizureFilePath
+        print ("Seizures JSON File = ", seizureFilePath)
 
     def summarizeDatset(self):
         '''
@@ -91,7 +92,7 @@ class CHBdataset(object):
         '''
         Read the seizures.json file and summarize the seizure information on per-record basis
         '''
-        f = open(self.seizureJsonFilePath, 'r')
+        f = open(self.seizureFilePath, 'r')
         self.jsonRoot = json.load(f)
         f.close()
         patientIDs = self.jsonRoot.keys()
@@ -174,6 +175,16 @@ class CHBdataset(object):
 
         return False
 
+    def recordContainsSeizure(self, recordID):
+        '''
+        Returns True if there is at least one seizure entry in the entire record
+                False otherwise
+        '''
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return False
+        else:
+            return True
+    
     def getSeizuresVectorCSV(self, recordID, epochLen, slidingWindowLen, numEpochs):
         '''
         epochLen and slidingWindowLen are in milliseconds

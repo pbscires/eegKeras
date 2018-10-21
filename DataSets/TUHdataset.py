@@ -7,8 +7,9 @@ import sys
 import os
 import math
 import json
+from DataSets.BaseDataset import BaseDataset
 
-class TUHdataset(object):
+class TUHdataset(BaseDataset):
     '''
     This class contains several methods that can process the EDF files in the TUH dataset.
     It serves 2 purposes:
@@ -24,7 +25,7 @@ class TUHdataset(object):
         self.rootDir = rootDir
         print ("Top level directory for the dataset = ", rootDir)
         self.xlsxFilePath = xlsxFilePath
-        print ("CSV File = ", xlsxFilePath)
+        print ("xlsx File = ", xlsxFilePath)
         # self.edfFilePath = os.path.join(dirPath, )
         # self.subjectName = subjectName
     
@@ -257,6 +258,44 @@ class TUHdataset(object):
 
         return False
     
+    def recordContainsSeizure(self, recordID):
+        '''
+        Returns True if there is at least one seizure entry in the entire record
+                False otherwise
+        '''
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return False
+        else:
+            return True
+    
+    def getExtendedSeizuresVectorCSV(self, recordID, epochLen, slidingWindowLen, numEpochs, priorSeconds, postSeconds):
+        '''
+        epochLen and slidingWindowLen are in milliseconds
+        '''
+        print ("priorSeconds={}, postSeconds={}, epochLen={}, slidingWindowLen={}, numEpochs={}".format(priorSeconds, postSeconds, epochLen, slidingWindowLen, numEpochs))
+        seizuresVector = np.zeros((numEpochs), dtype=np.int32)
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return seizuresVector
+
+        seizureStart = self.recordInfo[recordID]['seizureStart']
+        seizureEnd = self.recordInfo[recordID]['seizureEnd']
+        # Update the seizureStart and seizureEnd values with the prio and post seconds
+        seizureStart = max(0, seizureStart-priorSeconds)
+        # seizureEnd may have a value t hat is more than the EDF duration,
+        #  but that does not hurt in this method
+        seizureEnd += postSeconds
+        print ("recordID={}, seizureStart={},seizureEnd={}".format(recordID, seizureStart, seizureEnd))
+        # seizureType = self.recordInfo[recordID]['seizureType']
+        for i in range(numEpochs):
+            epochStart = float(i * slidingWindowLen / 1000)
+            epochEnd = epochStart + float(epochLen / 1000)
+            if (( (epochStart >= seizureStart) and (epochStart <= seizureEnd)) or
+                ( (epochEnd >= seizureStart) and (epochEnd <= seizureEnd))):
+                    seizuresVector[i] = 1
+        # print (seizuresVector)
+        return (seizuresVector)
+
+    
     def getSeizuresVectorCSV(self, recordID, epochLen, slidingWindowLen, numEpochs):
         '''
         epochLen and slidingWindowLen are in milliseconds
@@ -301,3 +340,92 @@ class TUHdataset(object):
         seizureStart = self.recordInfo[recordID]['seizureStart']
         seizureEnd = self.recordInfo[recordID]['seizureEnd']
         return (seizureStart, seizureEnd)
+
+
+    def countRowsForEDFDataSubset(self, recordID, priorSeconds, postSeconds):
+        if ('seizureStart' in self.recordInfo[recordID].keys()):
+            (seizureStart, seizureEnd) = self.getSeizureStartEndTimes(recordID)
+        else:
+            return (0) # This record has no seizure data
+
+        numRows = self.recordInfo[recordID]['numSamples']
+        numFeatures = self.recordInfo[recordID]['numChannels']
+        print ("numRows = ", numRows, ", numFeatures = ", numFeatures)
+        startSec = seizureStart - priorSeconds
+        endSec = seizureEnd + postSeconds
+        startRowNum = int(startSec * self.recordInfo[recordID]['sampleFrequency'])
+        endRowNum = int(endSec * self.recordInfo[recordID]['sampleFrequency'])
+        if (startRowNum < 0):
+            startRowNum = 0
+        if (endRowNum > numRows):
+            endRowNum = numRows
+        numRows = endRowNum - startRowNum + 1
+        print ("numRows = ", numRows)
+        return (numRows)
+    
+    # def countRowsForCSVDataSubset(self, recordID, epochLen, slidingWindowLen, numEpochs, priorSeconds, postSeconds):
+    #     '''
+    #     epochLen and slidingWindowLen are in milliseconds
+    #     '''
+    #     if ('seizureStart' not in self.recordInfo[recordID].keys()):
+    #         return (0) # This record has no seizure data
+
+    #     seizureStart = self.recordInfo[recordID]['seizureStart']
+    #     seizureEnd = self.recordInfo[recordID]['seizureEnd']
+    #     # Update the seizureStart and seizureEnd values with the prio and post seconds
+    #     seizureStart = max(0, seizureStart-priorSeconds)
+    #     # seizureEnd may have a value t hat is more than the EDF duration,
+    #     #  but that does not hurt in this method
+    #     seizureEnd += postSeconds
+    #     # seizureType = self.recordInfo[recordID]['seizureType']
+    #     numRows = 0
+    #     for i in range(numEpochs):
+    #         epochStart = float(i * slidingWindowLen / 1000)
+    #         epochEnd = epochStart + float(epochLen / 1000)
+    #         if (( (epochStart >= seizureStart) and (epochStart <= seizureEnd)) or
+    #             ( (epochEnd >= seizureStart) and (epochEnd <= seizureEnd))):
+    #                 numRows += 1
+    #     return (numRows)
+
+    def getEDFDataSubset(self, recordID, priorSeconds, postSeconds):
+        dataset = self.getRecordData(recordID)
+        print (dataset)
+        if ('seizureStart' in self.recordInfo[recordID].keys()):
+            (seizureStart, seizureEnd) = self.getSeizureStartEndTimes(recordID)
+        else:
+            return (None) # This record has no seizure data
+        
+        numRows = dataset.shape[0]
+        numFeatures = self.recordInfo[recordID]['numChannels']
+        print ("numRows = ", numRows, ", numFeatures = ", numFeatures)
+        startSec = seizureStart - priorSeconds
+        endSec = seizureEnd + postSeconds
+        startRowNum = int(startSec * self.recordInfo[recordID]['sampleFrequency'])
+        endRowNum = int(endSec * self.recordInfo[recordID]['sampleFrequency'])
+        if (startRowNum < 0):
+            startRowNum = 0
+        if (endRowNum > numRows):
+            endRowNum = numRows
+        numRows = endRowNum - startRowNum + 1
+        print ("numRows = ", numRows)
+        dataset = dataset[startRowNum:endRowNum+1]
+        return (dataset)
+    
+    def getCSVDataSubset(self, recordID, csv_df, seizuresVector):
+        '''
+        csv_df -- data frame corresponding to the CSV file
+        '''
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return (None) # This record has no seizure data
+
+        startRowNum = 0
+        endRowNum = csv_df.shape[0] - 1
+        for i in range(len(seizuresVector)):
+            if (seizuresVector[i] == 1):
+                if (startRowNum <= 0):
+                    startRowNum = i
+                if (endRowNum != i):
+                    endRowNum = i
+        dataset = csv_df.iloc[startRowNum:endRowNum+1]
+        print ("Original dataset shape = {}, reduced dataset shape = {}".format(csv_df.shape, dataset.shape))
+        return (dataset)

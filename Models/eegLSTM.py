@@ -9,6 +9,8 @@ from keras.layers import Bidirectional
 import keras.backend as K
 import json
 import os
+import sys
+import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -69,14 +71,14 @@ class eegLSTM(object):
             self.numFeatures = numFeatures
 
     def saveModel(self, outputDir, filePrefix):
-        outFilename_model = filePrefix + '_LSTM.json'
+        outFilename_model = filePrefix + '.json'
         outFilepath = os.path.join(outputDir, outFilename_model)
         # serialize model to JSON
         model_json = self.model.to_json()
         with open(outFilepath, "w") as json_file:
             json_file.write(model_json)
         # serialize weights to HDF5
-        outFilename_weights = filePrefix + '_LSTM.h5'
+        outFilename_weights = filePrefix + '.h5'
         outFilepath = os.path.join(outputDir, outFilename_weights)
         self.model.save_weights(outFilepath)
         print("Saved model to disk")
@@ -84,7 +86,7 @@ class eegLSTM(object):
     def getModel(self):
         return (self.model)
     
-    def prepareDataset_1file(self, filePath):
+    def prepareDataset_fullfile(self, filePath):
         dataset = np.loadtxt(filePath, delimiter=',')
         # discard the last column which represents the occurrence of seizure
         dataset = dataset[:,:self.numFeatures]
@@ -120,52 +122,89 @@ class eegLSTM(object):
         self.X = X
         self.y = y
 
-    def _getNumRows(self, tuhd, recordID, priorSeconds, postSeconds):
-        if ('seizureStart' in tuhd.recordInfo[recordID].keys()):
-            (seizureStart, seizureEnd) = tuhd.getSeizureStartEndTimes(recordID)
-        else:
-            return (0) # This record has no seizure data
+    def prepareDataSubset_fromCSV(self, datasetObj, recordIDs, csvRecordInfo, epochLen, slidingWinLen, priorSeconds, postSeconds):
+        '''
+        This method creates self.X and self.y matrices from all the given
+        records.
+        self.X is of shape (numSamples, numInputTimeSteps, numFeatures)
+        self.y is of shape (numSamples, numOutputTimeSteps, numFeatures)
+        Each record corresponds to an CSV file with 0 or more seizures.
+        The Time step duration is determined by sample frequency when the
+          EDF file was recorded.
+        This method supports selectively including only those sequences that
+        lead to a seizure.
 
-        numRows = tuhd.recordInfo[recordID]['numSamples']
-        numFeatures = tuhd.recordInfo[recordID]['numChannels']
-        print ("numRows = ", numRows, ", numFeatures = ", numFeatures)
-        startSec = seizureStart - priorSeconds
-        endSec = seizureEnd + postSeconds
-        startRowNum = int(startSec * tuhd.recordInfo[recordID]['sampleFrequency'])
-        endRowNum = int(endSec * tuhd.recordInfo[recordID]['sampleFrequency'])
-        if (startRowNum < 0):
-            startRowNum = 0
-        if (endRowNum > numRows):
-            endRowNum = numRows
-        numRows = endRowNum - startRowNum + 1
-        print ("numRows = ", numRows)
-        return (numRows)
+        Input Parameters:
+        recordIDs -- list of records from which samples have to be created
+        priorSeconds, postSeconds -- determine which rows from the dataset
+               will be used for training the model. e.g., if the seizure
+               occured from 200 to 220 seconds and priorSeconds = 60, 
+               postSeconds = 10, then the data from 140th (200-60) second to 
+               230th (220+10) second will be used for training the model.
 
-    def _getDataset(self, tuhd, recordID, priorSeconds, postSeconds):
-        dataset = tuhd.getRecordData(recordID)
-        print (dataset)
-        if ('seizureStart' in tuhd.recordInfo[recordID].keys()):
-            (seizureStart, seizureEnd) = tuhd.getSeizureStartEndTimes(recordID)
-        else:
-            return (None) # This record has no seizure data
-        
-        numRows = dataset.shape[0]
+        '''
+        recordsWithSeizures = []
+        for recordID in recordIDs:
+           if (datasetObj.recordContainsSeizure(recordID)):
+                recordsWithSeizures.append(recordID)
+        print ("total number of records = ", len(recordIDs))
+        print ("Number of records with seizures = ", len(recordsWithSeizures))
+        totalSamples = 0
+        seizureVectors = {}
+        for recordID in recordsWithSeizures:
+            numRows = csvRecordInfo[recordID]['numRows']
+            curVector = datasetObj.getExtendedSeizuresVectorCSV(recordID, epochLen, slidingWinLen, numRows, priorSeconds, postSeconds)
+            seizureVectors[recordID] = curVector
+            curNumRows = sum(curVector)
+            print ("recordID={}, curNumRows={}".format(recordID, curNumRows))
+            if (curNumRows > 0):
+                totalSamples += curNumRows
+
+        print ("total number of Samples = ", totalSamples)
+        inSeqLen = self.inSeqLen
+        outSeqLen = self.outSeqLen
         numFeatures = self.numFeatures
-        print ("numRows = ", numRows, ", numFeatures = ", numFeatures)
-        startSec = seizureStart - priorSeconds
-        endSec = seizureEnd + postSeconds
-        startRowNum = int(startSec * tuhd.recordInfo[recordID]['sampleFrequency'])
-        endRowNum = int(endSec * tuhd.recordInfo[recordID]['sampleFrequency'])
-        if (startRowNum < 0):
-            startRowNum = 0
-        if (endRowNum > numRows):
-            endRowNum = numRows
-        numRows = endRowNum - startRowNum + 1
-        print ("numRows = ", numRows)
-        dataset = dataset[startRowNum:endRowNum+1]
-        return (dataset)
+        allRecords_X = np.empty([totalSamples, inSeqLen, numFeatures])
+        allRecords_y = np.empty([totalSamples, outSeqLen, numFeatures])
+        curInd = 0
+        for recordID in recordsWithSeizures:
+            filePath = csvRecordInfo[recordID]['CSVpath']
+            dataset = pd.read_csv(filePath)
+            dataset = datasetObj.getCSVDataSubset(recordID, dataset, seizureVectors[recordID])
+            dataset = dataset.values # Convert to a numpy array from pandas dataframe
+            numRows = dataset.shape[0]
+            numFeatures = self.numFeatures
+            numSamples = numRows - (inSeqLen + outSeqLen)
+            try:
+                X = np.empty([numSamples, inSeqLen, numFeatures])
+                y = np.empty([numSamples, outSeqLen, numFeatures])
+            except ValueError:
+                print ("numSamples={}, inSeqLen={}, numFeatures={}".format(numSamples, inSeqLen, numFeatures))
+                print ("numRows={}, filePath={}".format(numRows, filePath))
+                exit (-1)
+            for i in range(numSamples):
+                inSeqEnd = i + inSeqLen
+                outSeqEnd = inSeqEnd + outSeqLen
+                try:
+                    # X[i] = np.flipud(dataset[i:inSeqEnd,:])
+                    X[i] = dataset[i:inSeqEnd,1:numFeatures+1]
+                    y[i] = dataset[inSeqEnd:outSeqEnd,1:numFeatures+1]
+                except ValueError:
+                    print ("Error occurred while trying to slice dataset")
+                    print ("i = {}, inSeqEnd = {}, outSeqEnd = {}, numFeatures={}".format(i, inSeqEnd, outSeqEnd, numFeatures))
+                    print (sys.exc_info())
+                    exit (-1)
+            
+            # print ("X.shape = {}, y.shape = {}".format(X.shape, y.shape))
+            endInd = curInd + X.shape[0]
+            allRecords_X[curInd:endInd] = X
+            allRecords_y[curInd:endInd] = y
+            curInd = endInd
+        self.X = allRecords_X
+        self.y = allRecords_y
+        print ("self.X.shape = ", self.X.shape, ",self.y.shape = ", self.y.shape)
 
-    def prepareDataset_fromTUHedf(self, tuhd, recordIDs, priorSeconds, postSeconds):
+    def prepareDataSubset_fromEDF(self, datasetObj, recordIDs, priorSeconds, postSeconds):
         '''
         This method creates self.X and self.y matrices from all the given
         records.
@@ -189,7 +228,7 @@ class eegLSTM(object):
         totalSamples = 0
         recordsWithSeizures = []
         for recordID in recordIDs:
-            curNumRows = self._getNumRows(tuhd, recordID, priorSeconds, postSeconds)
+            curNumRows = datasetObj.countRowsForEDFDataSubset(recordID, priorSeconds, postSeconds)
             if (curNumRows > 0):
                 totalSamples += curNumRows
                 recordsWithSeizures.append(recordID)
@@ -204,7 +243,7 @@ class eegLSTM(object):
         curInd = 0
 
         for recordID in recordsWithSeizures:
-            dataset = self._getDataset(tuhd, recordID, priorSeconds, postSeconds)
+            dataset = datasetObj.getEDFDataSubset(recordID, priorSeconds, postSeconds)
             numRows = dataset.shape[0]
             numFeatures = self.numFeatures
             numSamples = numRows - (inSeqLen + outSeqLen)
@@ -229,8 +268,8 @@ class eegLSTM(object):
         self.y = allRecords_y
         print ("self.X.shape = ", self.X.shape, ",self.y.shape = ", self.y.shape)
     
-    def fit(self, epochs=50, batch_size=10):
-        self.model.fit(self.X, self.y, validation_split=0.33, epochs=epochs, batch_size=batch_size, verbose=2)
+    def fit(self, epochs=50, batch_size=10, validation_split=0.33):
+        self.model.fit(self.X, self.y, validation_split=validation_split, epochs=epochs, batch_size=batch_size, verbose=2)
 
     def evaluate(self):
         score = self.model.evaluate(self.X, self.y, verbose=2)
