@@ -113,6 +113,8 @@ class eegDNN(object):
                 totalSamples += curNumRows
 
         print ("total number of Samples = ", totalSamples)
+        if (totalSamples <= 0):
+            return (totalSamples)
         numFeatures = self.numFeatures
         allRecords_X = np.empty([totalSamples, numFeatures])
         allRecords_y = np.empty([totalSamples])
@@ -132,6 +134,7 @@ class eegDNN(object):
         self.X = allRecords_X
         self.y = allRecords_y
         print ("self.X.shape = ", self.X.shape, ",self.y.shape = ", self.y.shape)
+        return (totalSamples)
 
     def fit(self, epochs=50, batch_size=10, validation_split=0.33):
         self.model.fit(self.X, self.y, validation_split=validation_split, epochs=epochs, batch_size=batch_size, verbose=2)

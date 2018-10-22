@@ -241,6 +241,8 @@ class eegLSTM(object):
         print ("total number of Samples = ", totalSamples)
         print ("total number of records = ", len(recordIDs))
         print ("Number of records with seizures = ", len(recordsWithSeizures))
+        if (totalSamples <= 0):
+            return (totalSamples)
         inSeqLen = self.inSeqLen
         outSeqLen = self.outSeqLen
         numFeatures = self.numFeatures
@@ -273,7 +275,8 @@ class eegLSTM(object):
         self.X = allRecords_X
         self.y = allRecords_y
         print ("self.X.shape = ", self.X.shape, ",self.y.shape = ", self.y.shape)
-    
+        return (totalSamples)
+
     def fit(self, epochs=50, batch_size=10, validation_split=0.33):
         self.model.fit(self.X, self.y, validation_split=validation_split, epochs=epochs, batch_size=batch_size, verbose=2)
 

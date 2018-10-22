@@ -84,7 +84,8 @@ def verifyAndGetNumFeatures(datasetObj, allRecords):
         xorSet = featuresSet.symmetric_difference(tmpSet)
         if (len(xorSet) > 0):
             print ("features are not common between", allRecords[0], "and", recordID)
-            exit (-1)
+            numFeatures = -1
+            return (numFeatures)
     print ("features are common between all the records!")
     numFeatures = len(featuresSet)
     return (numFeatures)
@@ -100,6 +101,77 @@ def getPriorAndPostSeconds(dataSubset):
         print ("data subset = [seizure-" + str(priorSeconds), ", seizure+" + str(postSeconds) + "]")
     
     return (priorSeconds, postSeconds)
+
+def trainWithLSTM(params):
+    inSeqLen = params['inSeqLen']
+    outSeqLen = params['outSeqLen']
+    numFeatures = params['numFeatures']
+    lstm_layers = params['lstm_layers']
+    datasetObj = params['datasetObj']
+    allRecords = params['allRecords']
+    csvRecordInfo = params['csvRecordInfo']
+    epochSeconds = params['epochSeconds']
+    slidingWindowSeconds = params['slidingWindowSeconds']
+    priorSeconds = params['priorSeconds']
+    postSeconds = params['postSeconds']
+    trainingEpochs = params['trainingEpochs']
+    trainingBatchSize = params['trainingBatchSize']
+    validation_split = params['validation_split']
+    modelOutputDir = params['modelOutputDir']
+    savedModelFilePrefix = params['savedModelFilePrefix']
+
+    lstmObj = eegLSTM("encoder_decoder_sequence")
+    # lstmObj = eegLSTM("stacked_LSTM")
+    lstmObj.createModel(inSeqLen, outSeqLen, numFeatures, lstm_layers)
+    if (dataFormat == "CSV"):
+        numSamples = lstmObj.prepareDataSubset_fromCSV(datasetObj, allRecords, 
+            csvRecordInfo, (epochSeconds*1000), (slidingWindowSeconds*1000), 
+            priorSeconds, postSeconds)
+        # If the number of samples is too low, there is no point in training with this dataset
+        if (numSamples <= 10):
+            print ("numSamples ({}) is too low! Returning without creating a saved model!".format(numSamples))
+            return
+    else:
+        print ("LSTM model for EDF format is not yet implemented in this version")
+        exit(-1)
+    lstmObj.fit(trainingEpochs, trainingBatchSize, validation_split)
+    lstmObj.saveModel(modelOutputDir, savedModelFilePrefix)
+    return
+
+def trainWithDNN(params):
+    numFeatures = params['numFeatures']
+    dnn_layers = params['dnn_layers']
+    datasetObj = params['datasetObj']
+    allRecords = params['allRecords']
+    csvRecordInfo = params['csvRecordInfo']
+    epochSeconds = params['epochSeconds']
+    slidingWindowSeconds = params['slidingWindowSeconds']
+    priorSeconds = params['priorSeconds']
+    postSeconds = params['postSeconds']
+    trainingEpochs = params['trainingEpochs']
+    trainingBatchSize = params['trainingBatchSize']
+    validation_split = params['validation_split']
+    modelOutputDir = params['modelOutputDir']
+    savedModelFilePrefix = params['savedModelFilePrefix']
+
+    dnnObj = eegDNN("Classifier_3layers")
+    dnnObj.createModel(numFeatures, dnn_layers)
+    if (dataFormat == "CSV"):
+        numSamples = dnnObj.prepareDataSubset_fromCSV(datasetObj, allRecords, 
+            csvRecordInfo, (epochSeconds*1000), (slidingWindowSeconds*1000), 
+            priorSeconds, postSeconds)
+        # If the number of samples is too low, there is no point in training with this dataset
+        if (numSamples <= 10):
+            print ("numSamples ({}) is too low! Returning without creating a saved model!".format(numSamples))
+            return
+    else:
+        print ("DNN model for EDF format is not yet implemented in this version")
+        exit(-1)
+    dnnObj.fit(trainingEpochs, trainingBatchSize, validation_split)
+    dnnObj.saveModel(modelOutputDir, savedModelFilePrefix)
+    # print ("DNN model is not yet implemented!!")
+    # exit (-1)
+    return
 
 if __name__ == "__main__":
     configFile = sys.argv[1]
@@ -126,6 +198,12 @@ if __name__ == "__main__":
     print ("trainingBatchSize = ", trainingBatchSize)
     print ("validation_split = ", validation_split)
 
+    # Initlaize the variables to null values
+    dataSource = '' # CHB or TUH
+    dataFormat = '' # EDF or CSV
+    modelType = ''  # LSTM, DNN, or HYBRID
+    trainingRecordsScope = '' # ALL, ITERATE_OVER_PATIENTS, SINGLE_PATIENT, SPECIFIC_RECORDS
+
     if (modelName in cfgReader.csvModels):
         epochSeconds = cfgReader.getEpochSeconds()
         slidingWindowSeconds = cfgReader.getSlidingWindowSeconds()
@@ -140,7 +218,7 @@ if __name__ == "__main__":
         del (csvRecordInfo['EOFmarker'])
     elif (modelName in cfgReader.edfModels):
         dataFormat = "EDF"
-        print ("Currently testing directly from the EDF file is not supported :(")
+        print ("Currently training directly from the EDF file is not supported :(")
         exit (-1)
     else:
         print ("Error! Unknown data format!!")
@@ -183,7 +261,9 @@ if __name__ == "__main__":
     allRecords = []
     allFiles = {}
     if (trainingRecords[0] == "all"):
+        trainingRecordsScope = 'ALL'
         savedModelFilePrefix = modelName + "_all"
+        print ("savedModelFilePrefix = ", savedModelFilePrefix)
         allRecords = list(datasetObj.recordInfo.keys())
         # We need to gather the list of files only if the file format is CSV;
         # No need to gather the files list for EDF files as the file path is 
@@ -194,11 +274,13 @@ if __name__ == "__main__":
             print ("Invalid data format ", dataFormat)
             exit (-1)
     elif (re.search("records for patient (\w+)", trainingRecords[0]) != None):
+        trainingRecordsScope = 'SPECIFIC_PATIENT'
         m = re.match("records for patient (\w+)", trainingRecords[0])
         patientID = m.group(1)
         print ("finding records for patient ID", patientID)
         allRecords = datasetObj.patientInfo[patientID]['records']
         savedModelFilePrefix = modelName + "_" + patientID
+        print ("savedModelFilePrefix = ", savedModelFilePrefix)
         # We need to gather the list of files only if the file format is CSV;
         # No need to gather the files list for EDF files as the file path is 
         # given in the recordInfo.json file
@@ -207,8 +289,17 @@ if __name__ == "__main__":
         else:
             print ("Invalid data format ", dataFormat)
             exit (-1)
+    elif (re.search("one patient at a time", trainingRecords[0]) != None):
+        trainingRecordsScope = 'ITERATE_OVER_PATIENTS'
+        filesPerPatient = {}
+        savedFilePrefixPerPatient = {}
+        for patientID in datasetObj.patientInfo.keys():
+            filesPerPatient[patientID] = getCSVfilesForRecords(datasetObj.patientInfo[patientID]['records'], trainingDataTopDir)
+            savedFilePrefixPerPatient[patientID] = modelName + "_" + patientID
     else:
+        trainingRecordsScope = 'SPECIFIC_RECORDS'
         savedModelFilePrefix = modelName + "_customRecords"
+        print ("savedModelFilePrefix = ", savedModelFilePrefix)
         allRecords = trainingRecords
         # We need to gather the list of files only if the file format is CSV;
         # No need to gather the files list for EDF files as the file path is 
@@ -219,46 +310,80 @@ if __name__ == "__main__":
             print ("Invalid data format ", dataFormat)
             exit (-1)
     
-    print ("savedModelFilePrefix = ", savedModelFilePrefix)
-    numFeatures = verifyAndGetNumFeatures(datasetObj, allRecords)
-    
-    if (dataFormat == "EDF"):
-        numFiles = len(allRecords)
-    else:
-        numFiles = len(allFiles)
-    print ("Number of files to train the model on = ", numFiles)
-
     (priorSeconds, postSeconds) = getPriorAndPostSeconds(dataSubset)
     if (priorSeconds == -1 or postSeconds == -1):
         print ("Training the model with full file is not yet implemented")
         exit (-1)
 
-    if (modelType == "LSTM"):
-        lstmObj = eegLSTM("encoder_decoder_sequence")
-        # lstmObj = eegLSTM("stacked_LSTM")
-        lstmObj.createModel(inSeqLen, outSeqLen, numFeatures, lstm_layers)
-        if (dataFormat == "CSV"):
-            lstmObj.prepareDataSubset_fromCSV(datasetObj, allRecords, csvRecordInfo, (epochSeconds*1000), (slidingWindowSeconds*1000), priorSeconds, postSeconds)
+    params = {}
+    params['datasetObj'] = datasetObj
+    params['csvRecordInfo'] = csvRecordInfo
+    params['epochSeconds'] = epochSeconds
+    params['slidingWindowSeconds'] = slidingWindowSeconds
+    params['priorSeconds'] = priorSeconds
+    params['postSeconds'] = postSeconds
+    params['trainingEpochs'] = trainingEpochs
+    params['trainingBatchSize'] = trainingBatchSize
+    params['validation_split'] = validation_split
+    params['modelOutputDir'] = modelOutputDir
+
+    if (trainingRecordsScope != 'ITERATE_OVER_PATIENTS'):
+        params['allRecords'] = allRecords
+        numFeatures = verifyAndGetNumFeatures(datasetObj, allRecords)
+        if (numFeatures <= 0):
+            print ("Error in numFeatures value!")
+            exit (-1)
+
+        params['numFeatures'] = numFeatures
+        params['savedModelFilePrefix'] = savedModelFilePrefix
+        
+        if (dataFormat == "EDF"):
+            numFiles = len(allRecords)
         else:
-            print ("LSTM model for EDF format is not yet implemented in this version")
-            exit(-1)
-        lstmObj.fit(trainingEpochs, trainingBatchSize)
-        lstmObj.saveModel(modelOutputDir, savedModelFilePrefix)
-    elif (modelType == "DNN"):
-        dnnObj = eegDNN("Classifier_3layers")
-        dnnObj.createModel(numFeatures, dnn_layers)
-        if (dataFormat == "CSV"):
-            dnnObj.prepareDataSubset_fromCSV(datasetObj, allRecords, csvRecordInfo, (epochSeconds*1000), (slidingWindowSeconds*1000), priorSeconds, postSeconds)
+            numFiles = len(allFiles)
+        print ("Number of files to train the model on = ", numFiles)
+
+        if (modelType == "LSTM"):
+            params['inSeqLen'] = inSeqLen
+            params['outSeqLen'] = outSeqLen
+            params['lstm_layers'] = lstm_layers
+            trainWithLSTM(params)
+        elif (modelType == "DNN"):
+            params['dnn_layers'] = dnn_layers
+            trainWithDNN(params)
         else:
-            print ("DNN model for EDF format is not yet implemented in this version")
-            exit(-1)
-        dnnObj.fit(trainingEpochs, trainingBatchSize, validation_split)
-        dnnObj.saveModel(modelOutputDir, savedModelFilePrefix)
-        # print ("DNN model is not yet implemented!!")
-        # exit (-1)
+            print ("Invalid model type!!")
+            exit (-1)
     else:
-        print ("Invalid model type!!")
-        exit (-1)
+        # Iterate training over each patient
+        for patientID in filesPerPatient.keys():
+            allRecords = datasetObj.patientInfo[patientID]['records']
+            numFeatures = verifyAndGetNumFeatures(datasetObj, allRecords)
+            if (numFeatures <= 0):
+                # Move on to the next patient
+                print ("Skipping patient", patientID, "because the number of features has some issue")
+                continue
+            allFiles = filesPerPatient[patientID]
+            if (dataFormat == "EDF"):
+                numFiles = len(allRecords)
+            else:
+                numFiles = len(allFiles)
+            print ("Number of files to train the model on = ", numFiles)
+            params['allRecords'] = allRecords
+            params['numFeatures'] = numFeatures
+            params['savedModelFilePrefix'] = savedFilePrefixPerPatient[patientID]
+            if (modelType == "LSTM"):
+                params['inSeqLen'] = inSeqLen
+                params['outSeqLen'] = outSeqLen
+                params['lstm_layers'] = lstm_layers
+                trainWithLSTM(params)
+            elif (modelType == "DNN"):
+                params['dnn_layers'] = dnn_layers
+                trainWithDNN(params)
+            else:
+                print ("Invalid model type!!")
+                exit (-1)
+
 
     # curFileNum = 0
     # for filename in allRecords:

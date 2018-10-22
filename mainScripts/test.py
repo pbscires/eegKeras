@@ -61,13 +61,47 @@ def verifyAndGetNumFeatures(datasetObj, allRecords):
     featuresSet = set(features)
     for recordID in allRecords:
         tmpSet = set(datasetObj.recordInfo[recordID]['channelLabels'])
+        print ("len(tmpSet) = ", len(tmpSet))
         xorSet = featuresSet.symmetric_difference(tmpSet)
         if (len(xorSet) > 0):
             print ("features are not common between", allRecords[0], "and", recordID)
-            exit (-1)
+            numFeatures = -1
+            return (numFeatures)
     numFeatures = len(featuresSet)
     print ("features are common between all the records! numFeatures = ", numFeatures)
     return (numFeatures)
+
+def testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
+    lstmObj = eegLSTM("encoder_decoder_sequence")
+    # numFeatures = 168
+    # lstmObj.loadModel(modelFile, weightsFile, inSeqLen, outSeqLen, numFeatures)
+    lstmObj.loadModel(modelFile, weightsFile)
+    print("Loaded model from disk")
+    if (numFeaturesInTestFiles != lstmObj.numFeatures):
+        print ("number of features in testfiles ", numFeaturesInTestFiles, 
+            "!= number of feature in loaded model ", lstmObj.numFeatures)
+    for testFilePath in allFiles.values():
+        print ("testFilePath = ", testFilePath)
+        lstmObj.prepareDataset_fullfile(testFilePath)
+        # dataset = np.loadtxt(testFile, delimiter=',')
+        # X = dataset[:,:19]
+        # y = dataset[:,19]
+        lstmObj.evaluate()
+
+def testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
+    dnnObj = eegDNN("Classifier_3layers")
+    dnnObj.loadModel(modelFile, weightsFile)
+    print("Loaded model from disk")
+    if (numFeaturesInTestFiles != dnnObj.numFeatures):
+        print ("number of features in testfiles ", numFeaturesInTestFiles, 
+            "!= number of feature in loaded model ", dnnObj.numFeatures)
+    for testFilePath in allFiles.values():
+        print ("testFilePath = ", testFilePath)
+        dnnObj.prepareDataset_fullfile(testFilePath)
+        # dataset = np.loadtxt(testFile, delimiter=',')
+        # X = dataset[:,:19]
+        # y = dataset[:,19]
+        dnnObj.evaluate()
 
 if __name__ == "__main__":
     configFile = sys.argv[1]
@@ -87,6 +121,12 @@ if __name__ == "__main__":
     print ("testingDataTopDir = {}", testingDataTopDir)
     print ("modelFile = {}, weightsFile = {}".format(modelFile, weightsFile))
     print ("recordInfoFile = ", recordInfoFile)
+
+    # Initlaize the variables to null values
+    dataSource = '' # CHB or TUH
+    dataFormat = '' # EDF or CSV
+    modelType = ''  # LSTM, DNN, or HYBRID
+    testingRecordsScope = '' # ALL, ITERATE_OVER_PATIENTS, SINGLE_PATIENT, SPECIFIC_RECORDS
 
     if (modelName in cfgReader.csvModels):
         epochSeconds = cfgReader.getEpochSeconds()
@@ -139,7 +179,7 @@ if __name__ == "__main__":
     allRecords = []
     allFiles = {}
     if (testingRecords[0] == "all"):
-        savedModelFilePrefix = modelName + "_all"
+        testingRecordsScope = 'ALL'
         allRecords = list(datasetObj.recordInfo.keys())
         # We need to gather the list of files only if the file format is CSV;
         # No need to gather the files list for EDF files as the file path is 
@@ -150,6 +190,7 @@ if __name__ == "__main__":
             print ("Invalid data format ", dataFormat)
             exit (-1)
     elif (re.search("records for patient (\w+)", testingRecords[0]) != None):
+        testingRecordsScope = 'SPECIFIC_PATIENT'
         m = re.match("records for patient (\w+)", testingRecords[0])
         patientID = m.group(1)
         print ("finding records for patient ID", patientID)
@@ -162,7 +203,17 @@ if __name__ == "__main__":
         else:
             print ("Invalid data format ", dataFormat)
             exit (-1)
+    elif (re.search("one patient at a time", testingRecords[0]) != None):
+        testingRecordsScope = 'ITERATE_OVER_PATIENTS'
+        filesPerPatient = {}
+        modelFilePerPatient = {}
+        weightsFilePerPatient = {}
+        for patientID in datasetObj.patientInfo.keys():
+            filesPerPatient[patientID] = getCSVfilesForRecords(datasetObj.patientInfo[patientID]['records'], testingDataTopDir)
+            modelFilePerPatient[patientID] = modelFile.replace("<PATIENT_ID>", patientID)
+            weightsFilePerPatient[patientID] = weightsFile.replace("<PATIENT_ID>", patientID)
     else:
+        testingRecordsScope = 'SPECIFIC_RECORDS'
         allRecords = testingRecords
         # We need to gather the list of files only if the file format is CSV;
         # No need to gather the files list for EDF files as the file path is 
@@ -173,43 +224,43 @@ if __name__ == "__main__":
             print ("Invalid data format ", dataFormat)
             exit (-1)
 
-    if (dataFormat == "EDF"):
-        numFiles = len(allRecords)
-    else:
-        numFiles = len(allFiles)
-    print ("Number of files to test the model on = ", numFiles)
+    if (testingRecordsScope != 'ITERATE_OVER_PATIENTS'):
+        if (dataFormat == "EDF"):
+            numFiles = len(allRecords)
+        else:
+            numFiles = len(allFiles)
+        print ("Number of files to test the model on = ", numFiles)
 
-    numFeaturesInTestFiles = verifyAndGetNumFeatures(datasetObj, allRecords)
-    if (modelType == "LSTM"):
-        lstmObj = eegLSTM("encoder_decoder_sequence")
-        # numFeatures = 168
-        # lstmObj.loadModel(modelFile, weightsFile, inSeqLen, outSeqLen, numFeatures)
-        lstmObj.loadModel(modelFile, weightsFile)
-        print("Loaded model from disk")
-        if (numFeaturesInTestFiles != lstmObj.numFeatures):
-            print ("number of features in testfiles ", numFeaturesInTestFiles, 
-                "!= number of feature in loaded model ", lstmObj.numFeatures)
-        for testFilePath in allFiles.values():
-            print ("testFilePath = ", testFilePath)
-            lstmObj.prepareDataset_fullfile(testFilePath)
-            # dataset = np.loadtxt(testFile, delimiter=',')
-            # X = dataset[:,:19]
-            # y = dataset[:,19]
-            lstmObj.evaluate()
-    elif (modelType == "DNN"):
-        dnnObj = eegDNN("Classifier_3layers")
-        dnnObj.loadModel(modelFile, weightsFile)
-        print("Loaded model from disk")
-        if (numFeaturesInTestFiles != dnnObj.numFeatures):
-            print ("number of features in testfiles ", numFeaturesInTestFiles, 
-                "!= number of feature in loaded model ", dnnObj.numFeatures)
-        for testFilePath in allFiles.values():
-            print ("testFilePath = ", testFilePath)
-            dnnObj.prepareDataset_fullfile(testFilePath)
-            # dataset = np.loadtxt(testFile, delimiter=',')
-            # X = dataset[:,:19]
-            # y = dataset[:,19]
-            dnnObj.evaluate()
+        numFeaturesInTestFiles = verifyAndGetNumFeatures(datasetObj, allRecords)
+        if (numFeaturesInTestFiles <= 0):
+            print ("Error in numFeaturesInTestFiles value!")
+            exit (-1)
+        if (modelType == "LSTM"):
+            testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+        elif (modelType == "DNN"):
+            testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+        else:
+            print ("modelType ", modelType, "is not yet supported")
+            exit (-1)
     else:
-        print ("modelType ", modelType, "is not yet supported")
-        exit (-1)
+        # Iterate testing over each patient
+        for patientID in filesPerPatient.keys():
+            allRecords = datasetObj.patientInfo[patientID]['records']
+            numFeaturesInTestFiles = verifyAndGetNumFeatures(datasetObj, allRecords)
+            if (numFeaturesInTestFiles <= 0):
+                # Move on to the next patient
+                print ("Skipping patient", patientID, "because the number of features has some issue")
+                continue
+            allFiles = filesPerPatient[patientID]
+            modelFile = modelFilePerPatient[patientID]
+            weightsFile = weightsFilePerPatient[patientID]
+            print ("PatientID = {}, numFeaturesInTestFiles = {}, modelFile = {}, weightsFile = {}".format(
+                patientID, numFeaturesInTestFiles, modelFile, weightsFile
+            ))
+            if (modelType == "LSTM"):
+                testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+            elif (modelType == "DNN"):
+                testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+            else:
+                print ("modelType ", modelType, "is not yet supported")
+                exit (-1)
