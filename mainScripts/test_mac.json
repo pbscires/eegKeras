@@ -1,4 +1,22 @@
 {
+    "CSV_MODELS" : ["DNN_CHB_LL", "DNN_CHB_FFT", "DNN_TUH_LL", "DNN_TUH_FFT", 
+        "LSTM_CHB_LL", "LSTM_CHB_FFT", "LSTM_TUH_LL", "LSTM_TUH_FFT", 
+        "DNN_CHB_LL_PCA", "DNN_CHB_FFT_PCA", "DNN_TUH_LL_PCA", "DNN_TUH_FFT_PCA", 
+        "LSTM_CHB_LL_PCA", "LSTM_CHB_FFT_PCA", "LSTM_TUH_LL_PCA", "LSTM_TUH_FFT_PCA"],
+    "EDF_MODELS" : ["DNN_CHB", "DNN_TUH", "LSTM_CHB", "LSTM_TUH"],
+    "LSTM_TUH_LL" : {
+        "testingDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/LineLength",
+        "recordInfoJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_data/recordInfo.json",
+        "csvSummaryJsonFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/tuh_eeg_output/LineLength.summary.json",
+        "testingRecords_example1" : ["all"],
+        "testingRecords_example2" : ["records for patient 00006440"],
+        "testingRecords_example3" : ["00006440_s004_t000", "00006440_s004_t001"],
+        "testingRecords" : ["records for patient 00006440"],
+        "savedModelFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/savedModels/LSTM_TUH_LL_00006440.json",
+        "savedWeightsFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/savedModels/LSTM_TUH_LL_00006440.h5",
+        "epochSeconds" : 10,
+        "SlidingWindowSeconds" : 2
+    },
     "DNN" : {
         "testDataTopDir" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/output/LineLength",
         "savedModelFilePath" : "/Users/rsburugula/Documents/workspace/eegKeras/savedModels/LL_chb03_01_DNN.json",

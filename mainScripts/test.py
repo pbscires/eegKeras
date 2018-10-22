@@ -7,6 +7,7 @@ from Models.eegLSTM import eegLSTM
 from DataSets.TUHdataset import TUHdataset
 from DataSets.CHBdataset import CHBdataset
 
+
 class ConfigReader(object):
     def __init__(self, configFile, modelName):
         '''
@@ -20,11 +21,14 @@ class ConfigReader(object):
         self.jsonData = self.jsonRoot[modelName]
         f.close()
 
-    def getTrainingDataDir(self):
-        return self.jsonData['trainingDataTopDir']
+    def getTestingDataDir(self):
+        return self.jsonData['testingDataTopDir']
     
-    def getModelOutputDir(self):
-        return self.jsonData['modelOutputDir']
+    def getSavedModelFile(self):
+        return self.jsonData['savedModelFile']
+    
+    def getSavedWeightsFile(self):
+        return self.jsonData['savedWeightsFile']
     
     def getRecordInfoFile(self):
         return self.jsonData['recordInfoJsonFile']
@@ -32,32 +36,8 @@ class ConfigReader(object):
     def getCSVsummaryJsonFile(self):
         return self.jsonData['csvSummaryJsonFile']
         
-    def getTrainingRecords(self):
-        return self.jsonData['trainingRecords']
-    
-    def getDataSubsetString(self):
-        return self.jsonData['data_subset']
-    
-    def getDNNLayers(self):
-        return self.jsonData['dnn_layers']
-    
-    def getLSTMlayers(self):
-        return self.jsonData['lstm_layers']
-    
-    def getInputSeqLen(self):
-        return self.jsonData['inSeqLen']
-    
-    def getOutputSeqLen(self):
-        return self.jsonData['outSeqLen']
-    
-    def getTrainingEpochs(self):
-        return self.jsonData['training_epochs']
-    
-    def getTrainingBatchSize(self):
-        return self.jsonData['training_batchsize']
-    
-    def getValidationSplit(self):
-        return self.jsonData['validation_split']
+    def getTestingRecords(self):
+        return self.jsonData['testingRecords']
     
     def getEpochSeconds(self):
         return self.jsonData['epochSeconds']
@@ -65,9 +45,9 @@ class ConfigReader(object):
     def getSlidingWindowSeconds(self):
         return self.jsonData['SlidingWindowSeconds']
 
-def getCSVfilesForRecords(allRecords, trainingDataTopDir):
+def getCSVfilesForRecords(allRecords, testingDataTopDir):
     allFiles = {}
-    for root, dirs, files in os.walk(trainingDataTopDir):
+    for root, dirs, files in os.walk(testingDataTopDir):
         for filename in files:
             if (re.search("\.csv$", filename) != None):
                 recordID = os.path.splitext(os.path.basename(filename))[0]
@@ -85,21 +65,9 @@ def verifyAndGetNumFeatures(datasetObj, allRecords):
         if (len(xorSet) > 0):
             print ("features are not common between", allRecords[0], "and", recordID)
             exit (-1)
-    print ("features are common between all the records!")
     numFeatures = len(featuresSet)
+    print ("features are common between all the records! numFeatures = ", numFeatures)
     return (numFeatures)
-
-def getPriorAndPostSeconds(dataSubset):
-    if (dataSubset == "fulldata"):
-        print ("Will be training on full data")
-        priorSeconds = postSeconds = -1
-    elif (re.search("seizure\-(\d+), seizure\+(\d+)", dataSubset) != None):
-        m = re.match("seizure\-(\d+), seizure\+(\d+)", dataSubset)
-        priorSeconds = int(m.group(1))
-        postSeconds = int(m.group(2))
-        print ("data subset = [seizure-" + str(priorSeconds), ", seizure+" + str(postSeconds) + "]")
-    
-    return (priorSeconds, postSeconds)
 
 if __name__ == "__main__":
     configFile = sys.argv[1]
@@ -108,23 +76,17 @@ if __name__ == "__main__":
     print ("model to train = ", modelName)
     cfgReader = ConfigReader(configFile, modelName)
 
-    trainingDataTopDir = cfgReader.getTrainingDataDir()
-    trainingRecords = cfgReader.getTrainingRecords()
-    modelOutputDir = cfgReader.getModelOutputDir()
+    testingDataTopDir = cfgReader.getTestingDataDir()
+    testingRecords = cfgReader.getTestingRecords()
+    # Load the saved model and try to evaluate on new data
+    # load json and create model
+    modelFile = cfgReader.getSavedModelFile()
+    weightsFile = cfgReader.getSavedWeightsFile()
     recordInfoFile = cfgReader.getRecordInfoFile()
-    dataSubset = cfgReader.getDataSubsetString()
-    trainingEpochs = cfgReader.getTrainingEpochs()
-    trainingBatchSize = cfgReader.getTrainingBatchSize()
-    validation_split = cfgReader.getValidationSplit()
 
-    print ("trainingDataTopDir = ", trainingDataTopDir)
-    print ("trainingRecords = ", trainingRecords)
-    print ("modelOutputDir = ", modelOutputDir)
-    print ("data subset string = ", dataSubset)
+    print ("testingDataTopDir = {}", testingDataTopDir)
+    print ("modelFile = {}, weightsFile = {}".format(modelFile, weightsFile))
     print ("recordInfoFile = ", recordInfoFile)
-    print ("trainingEpochs = ", trainingEpochs)
-    print ("trainingBatchSize = ", trainingBatchSize)
-    print ("validation_split = ", validation_split)
 
     if (modelName in cfgReader.csvModels):
         epochSeconds = cfgReader.getEpochSeconds()
@@ -145,125 +107,96 @@ if __name__ == "__main__":
     else:
         print ("Error! Unknown data format!!")
         exit (-1)
-    
+
     if (re.search('LSTM', modelName) != None):
         modelType = "LSTM"
-        lstm_layers = cfgReader.getLSTMlayers()
-        inSeqLen = cfgReader.getInputSeqLen()
-        outSeqLen = cfgReader.getOutputSeqLen()
-        print ("modelType = {}, lstm_layers = {}, inSeqLen = {}, outSeqLen = {}".format(
-            modelType, lstm_layers, inSeqLen, outSeqLen))
+        print ("modelType = {}", modelType)
     elif (re.search('DNN', modelName) != None):
         modelType = "DNN"
         print ("DNN model type is currently not yet implemented :(")
         exit (-1)
-        dnn_layers = cfgReader.getDNNLayers()
-        print ("modelType = {}, dnn_layers = {}".format(modelType, dnn_layers))
     else:
         print ("Error! Unknown model type!!")
         exit (-1)
-    
+
     if (re.search('CHB', modelName) != None):
         dataSource = "CHB"
         print ("CHB data source is currently not yet implemented :(")
         exit (-1)
         # Do not provide the seizures.json file; we will load the seizure info from the recordInfo json file
-        datasetObj = CHBdataset(trainingDataTopDir, '')
+        datasetObj = CHBdataset(testingDataTopDir, '')
         # loadJsonFile() will initialize the object
         datasetObj.loadJsonFile(recordInfoFile)
     elif (re.search('TUH', modelName) != None):
         dataSource = "TUH"
         # Do not provide the xlsx file; we will load the seizure info from the json file
-        datasetObj = TUHdataset(trainingDataTopDir, '')
+        datasetObj = TUHdataset(testingDataTopDir, '')
         # loadJsonFile() will initialize the object
         datasetObj.loadJsonFile(recordInfoFile)
     else:
         print ("Error! Unknown data source!!")
         exit (-1)
 
-
     allRecords = []
     allFiles = {}
-    if (trainingRecords[0] == "all"):
+    if (testingRecords[0] == "all"):
         savedModelFilePrefix = modelName + "_all"
         allRecords = list(datasetObj.recordInfo.keys())
         # We need to gather the list of files only if the file format is CSV;
         # No need to gather the files list for EDF files as the file path is 
         # given in the recordInfo.json file
         if (dataFormat == "CSV"):
-            allFiles = getCSVfilesForRecords(allRecords, trainingDataTopDir)
+            allFiles = getCSVfilesForRecords(allRecords, testingDataTopDir)
         else:
             print ("Invalid data format ", dataFormat)
             exit (-1)
-    elif (re.search("records for patient (\w+)", trainingRecords[0]) != None):
-        m = re.match("records for patient (\w+)", trainingRecords[0])
+    elif (re.search("records for patient (\w+)", testingRecords[0]) != None):
+        m = re.match("records for patient (\w+)", testingRecords[0])
         patientID = m.group(1)
         print ("finding records for patient ID", patientID)
         allRecords = datasetObj.patientInfo[patientID]['records']
-        savedModelFilePrefix = modelName + "_" + patientID
         # We need to gather the list of files only if the file format is CSV;
         # No need to gather the files list for EDF files as the file path is 
         # given in the recordInfo.json file
         if (dataFormat == "CSV"):
-            allFiles = getCSVfilesForRecords(allRecords, trainingDataTopDir)        
+            allFiles = getCSVfilesForRecords(allRecords, testingDataTopDir)
         else:
             print ("Invalid data format ", dataFormat)
             exit (-1)
     else:
-        savedModelFilePrefix = modelName + "_customRecords"
-        allRecords = trainingRecords
+        allRecords = testingRecords
         # We need to gather the list of files only if the file format is CSV;
         # No need to gather the files list for EDF files as the file path is 
         # given in the recordInfo.json file
         if (dataFormat == "CSV"):
-            allFiles = getCSVfilesForRecords(allRecords, trainingDataTopDir)
+            allFiles = getCSVfilesForRecords(allRecords, testingDataTopDir)
         else:
             print ("Invalid data format ", dataFormat)
             exit (-1)
-    
-    print ("savedModelFilePrefix = ", savedModelFilePrefix)
-    numFeatures = verifyAndGetNumFeatures(datasetObj, allRecords)
-    
+
     if (dataFormat == "EDF"):
         numFiles = len(allRecords)
     else:
         numFiles = len(allFiles)
-    print ("Number of files to train the model on = ", numFiles)
+    print ("Number of files to test the model on = ", numFiles)
 
-    (priorSeconds, postSeconds) = getPriorAndPostSeconds(dataSubset)
-    if (priorSeconds == -1 or postSeconds == -1):
-        print ("Training the model with full file is not yet impleted")
-        exit (-1)
-
+    numFeaturesInTestFiles = verifyAndGetNumFeatures(datasetObj, allRecords)
     if (modelType == "LSTM"):
         lstmObj = eegLSTM("encoder_decoder_sequence")
-        # lstmObj = eegLSTM("stacked_LSTM")
-        lstmObj.createModel(inSeqLen, outSeqLen, numFeatures, lstm_layers)
-        if (dataFormat == "CSV"):
-            lstmObj.prepareDataSubset_fromCSV(datasetObj, allRecords, csvRecordInfo, (epochSeconds*1000), (slidingWindowSeconds*1000), priorSeconds, postSeconds)
-        else:
-            print ("LSTM model for EDF format is not yet implemented in this version")
-            exit(-1)
-        lstmObj.fit(trainingEpochs, trainingBatchSize)
-        lstmObj.saveModel(modelOutputDir, savedModelFilePrefix)
-    elif (modelType == "DNN"):
-        print ("DNN model is not yet implemented!!")
-        exit (-1)
+        # numFeatures = 168
+        # lstmObj.loadModel(modelFile, weightsFile, inSeqLen, outSeqLen, numFeatures)
+        lstmObj.loadModel(modelFile, weightsFile)
+        print("Loaded model from disk")
+        if (numFeaturesInTestFiles != lstmObj.numFeatures):
+            print ("number of features in testfiles ", numFeaturesInTestFiles, 
+                "!= number of feature in loaded model ", lstmObj.numFeatures)
+        for testFilePath in allFiles.values():
+            print ("testFilePath = ", testFilePath)
+            lstmObj.prepareDataset_fullfile(testFilePath)
+            # dataset = np.loadtxt(testFile, delimiter=',')
+            # X = dataset[:,:19]
+            # y = dataset[:,19]
+            lstmObj.evaluate()
     else:
-        print ("Invalid model type!!")
+        print ("modelType ", modelType, "is not yet supported")
         exit (-1)
-
-    # curFileNum = 0
-    # for filename in allRecords:
-    #     curFileNum += 1
-    #     print ("Currently training file {} of {} ...".format(curFileNum, numFiles))
-    #     filePrefix = os.path.splitext(os.path.basename(filename))[0]
-    #     filePrefix = savedModelFilePrefix + filePrefix
-    #     dnnModel = eegDNN("Classifier_3layers")
-    #     filePath = os.path.join(trainingDataTopDir, filename)
-    #     print ("trainingFilePath = ", filePath)
-    #     dnnModel.prepareDataset_1file(filePath)
-    #     numFeatures = dnnModel.numFeatures
-    #     dnnModel.createModel(numFeatures)
-    #     dnnModel.fit(trainingEpochs, trainingBatchSize, validation_split)
-    #     dnnModel.saveModel(modelOutputDir, filePrefix)

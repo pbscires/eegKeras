@@ -34,7 +34,7 @@ class eegLSTM(object):
         model = Sequential()
 
         if (self.modelName == "encoder_decoder_sequence"):
-            model.add(Bidirectional(LSTM(lstm_units[0], input_shape=(inSeqLen, numFeatures), bias_initializer='ones')))
+            model.add(Bidirectional(LSTM(lstm_units[0], input_shape=(inSeqLen, numFeatures), bias_initializer='ones', name='FirstLayer')))
             # model.add(LSTM(lstm_units[0], input_shape=(inSeqLen, numFeatures)))
             model.add(RepeatVector(outSeqLen))
             for i in range(1, len(lstm_units)-1):
@@ -55,7 +55,7 @@ class eegLSTM(object):
         self.model = model
         # print (model.summary())
     
-    def loadModel(self, modelFile, weightsFile, inSeqLen, outSeqLen, numFeatures):
+    def loadModel(self, modelFile, weightsFile):
         if (self.modelName == "encoder_decoder_sequence"):
             json_file = open(modelFile, 'r')
             loaded_model_json = json_file.read()
@@ -66,9 +66,13 @@ class eegLSTM(object):
             loaded_model.compile(loss='mean_squared_logarithmic_error', optimizer='sgd', metrics=[self.numNear, self.numFar ])
             # loaded_model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
             self.model = loaded_model
-            self.inSeqLen = inSeqLen
-            self.outSeqLen = outSeqLen
-            self.numFeatures = numFeatures
+            # self.inSeqLen = inSeqLen
+            # self.outSeqLen = outSeqLen
+            # self.numFeatures = numFeatures
+            self.inSeqLen = loaded_model.layers[0].get_input_at(0).get_shape().as_list()[1]
+            self.outSeqLen = loaded_model.layers[-1].get_output_at(0).get_shape().as_list()[1]
+            self.numFeatures = loaded_model.layers[0].get_input_at(0).get_shape().as_list()[2]
+            print ("inSeqLen={}, outSeqLen={}, numFeatures={}".format(self.inSeqLen, self.outSeqLen, self.numFeatures))
 
     def saveModel(self, outputDir, filePrefix):
         outFilename_model = filePrefix + '.json'
@@ -87,7 +91,9 @@ class eegLSTM(object):
         return (self.model)
     
     def prepareDataset_fullfile(self, filePath):
-        dataset = np.loadtxt(filePath, delimiter=',')
+        dataset = pd.read_csv(filePath)
+        dataset = dataset.values # Convert to a numpy array from pandas dataframe
+        # dataset = np.loadtxt(filePath, delimiter=',')
         # discard the last column which represents the occurrence of seizure
         dataset = dataset[:,:self.numFeatures]
         # scaler = MinMaxScaler(feature_range=(0,1))
