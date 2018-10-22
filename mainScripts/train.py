@@ -155,8 +155,6 @@ if __name__ == "__main__":
             modelType, lstm_layers, inSeqLen, outSeqLen))
     elif (re.search('DNN', modelName) != None):
         modelType = "DNN"
-        print ("DNN model type is currently not yet implemented :(")
-        exit (-1)
         dnn_layers = cfgReader.getDNNLayers()
         print ("modelType = {}, dnn_layers = {}".format(modelType, dnn_layers))
     else:
@@ -232,7 +230,7 @@ if __name__ == "__main__":
 
     (priorSeconds, postSeconds) = getPriorAndPostSeconds(dataSubset)
     if (priorSeconds == -1 or postSeconds == -1):
-        print ("Training the model with full file is not yet impleted")
+        print ("Training the model with full file is not yet implemented")
         exit (-1)
 
     if (modelType == "LSTM"):
@@ -247,8 +245,17 @@ if __name__ == "__main__":
         lstmObj.fit(trainingEpochs, trainingBatchSize)
         lstmObj.saveModel(modelOutputDir, savedModelFilePrefix)
     elif (modelType == "DNN"):
-        print ("DNN model is not yet implemented!!")
-        exit (-1)
+        dnnObj = eegDNN("Classifier_3layers")
+        dnnObj.createModel(numFeatures, dnn_layers)
+        if (dataFormat == "CSV"):
+            dnnObj.prepareDataSubset_fromCSV(datasetObj, allRecords, csvRecordInfo, (epochSeconds*1000), (slidingWindowSeconds*1000), priorSeconds, postSeconds)
+        else:
+            print ("DNN model for EDF format is not yet implemented in this version")
+            exit(-1)
+        dnnObj.fit(trainingEpochs, trainingBatchSize, validation_split)
+        dnnObj.saveModel(modelOutputDir, savedModelFilePrefix)
+        # print ("DNN model is not yet implemented!!")
+        # exit (-1)
     else:
         print ("Invalid model type!!")
         exit (-1)

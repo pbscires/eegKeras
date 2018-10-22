@@ -113,8 +113,7 @@ if __name__ == "__main__":
         print ("modelType = {}", modelType)
     elif (re.search('DNN', modelName) != None):
         modelType = "DNN"
-        print ("DNN model type is currently not yet implemented :(")
-        exit (-1)
+        print ("modelType = {}", modelType)
     else:
         print ("Error! Unknown model type!!")
         exit (-1)
@@ -197,6 +196,20 @@ if __name__ == "__main__":
             # X = dataset[:,:19]
             # y = dataset[:,19]
             lstmObj.evaluate()
+    elif (modelType == "DNN"):
+        dnnObj = eegDNN("Classifier_3layers")
+        dnnObj.loadModel(modelFile, weightsFile)
+        print("Loaded model from disk")
+        if (numFeaturesInTestFiles != dnnObj.numFeatures):
+            print ("number of features in testfiles ", numFeaturesInTestFiles, 
+                "!= number of feature in loaded model ", dnnObj.numFeatures)
+        for testFilePath in allFiles.values():
+            print ("testFilePath = ", testFilePath)
+            dnnObj.prepareDataset_fullfile(testFilePath)
+            # dataset = np.loadtxt(testFile, delimiter=',')
+            # X = dataset[:,:19]
+            # y = dataset[:,19]
+            dnnObj.evaluate()
     else:
         print ("modelType ", modelType, "is not yet supported")
         exit (-1)
