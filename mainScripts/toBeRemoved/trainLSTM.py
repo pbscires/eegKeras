@@ -34,16 +34,6 @@ if __name__ == '__main__':
     if (len(trainingFiles) == 1):
         trainingFile = trainingFiles[0]
         print ("trainingFile = ", trainingFile)
-<<<<<<< HEAD
-        print ("Preparing training file")
-        trainingSections = np.empty([len(trainingFile), len(trainingFile[0])])
-        for row in trainingFile:
-            if row[]
-        stackedLSTM.prepareDataset_1file(os.path.join(trainingDataTopDir, trainingFile))
-        stackedLSTM.fit()
-        stackedLSTM.saveModel(modelOutputDir, savedModelFilePrefix)
-=======
         lstmObj.prepareDataset_1file(os.path.join(trainingDataTopDir, trainingFile))
         lstmObj.fit(epochs=20, batch_size=10)
         lstmObj.saveModel(modelOutputDir, savedModelFilePrefix)
->>>>>>> 678ec5e1b7a3c2f688a3aa133dfeda85477de0ed
