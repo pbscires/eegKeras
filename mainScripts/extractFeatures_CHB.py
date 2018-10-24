@@ -6,10 +6,6 @@ from Features.LineLength import LineLength
 from Features.FastFourierTransform import FFT
 import time
 import json
-<<<<<<< HEAD
-=======
-import re
->>>>>>> adding chb summary files
 import pandas as pd
 
 # This script gathers data from the seizures.json file and the EDF files and
@@ -26,7 +22,6 @@ def createRecordInfoFromSeizureJsonFile():
     jsonFilePath = sys.argv[3]
     print ("json file path = ", jsonFilePath)
     chbd.saveToJsonFile(jsonFilePath)
-<<<<<<< HEAD
 
 def createLLcsvs():
     rootDir = sys.argv[1]
@@ -108,54 +103,6 @@ def summarizeCSVs():
                 m = re.match('\w+\.(chb\d+_\d+)\.edf', recordID)
                 if (m != None):
                     recordID = m.group(1)
-                recordInfo[recordID] = {}
-                recordInfo[recordID]['CSVpath'] = os.path.join(root, filename)
-    
-    # Get the information for each csv file
-    for recordID in recordInfo.keys():
-        filePath = recordInfo[recordID]['CSVpath']
-        dataset = pd.read_csv(filePath)
-        # print ("dataset.shape = ", dataset.shape)
-        numRows = dataset.shape[0]
-        # To get numFeatures, subtract 2 from dataset.shape[1] so that 
-        # the index column and the seizuresPresent Column are not counted.
-        numFeatures = dataset.shape[1] - 2 
-        # print ("recordID={}, filePath={}, numRows={}, numFeatures={}".format(recordID,
-        #     filePath, numRows, numFeatures))
-        # real_data = dataset.values
-        # real_data = real_data[:,1:numFeatures+1]
-        # print ("Shape of real_data = ", real_data.shape)
-        recordInfo[recordID]['numRows'] = numRows
-        recordInfo[recordID]['numFeatures'] = numFeatures
-        recordInfo[recordID]['containsHeaderRow'] = True
-        recordInfo[recordID]['containsIndexCol'] = True
-    _saveToJsonFile(recordInfo, summaryJsonFile)
-=======
->>>>>>> initial
-
-def _saveToJsonFile(recordInfo, filePath):
-    print ("Saving to the json file ", filePath)
-
-    with open(filePath, 'w') as f:
-        f.write("{\n")
-        for recordID in recordInfo.keys():
-            try:
-                f.write("\"" + recordID + "\" : ")
-                f.write(json.dumps(recordInfo[recordID]))
-                f.write(",\n")
-            except TypeError:
-                print ("Record = ", recordInfo[recordID])
-        f.write("\"EOFmarker\" : \"EOF\" }\n")
-
-def summarizeCSVs():
-    rootDir = sys.argv[1]
-    summaryJsonFile = sys.argv[2]
-    print ("rootDir={}, summaryJsonFile={}".format(rootDir, summaryJsonFile))
-    recordInfo = {}
-    for root, dirs, files in os.walk(rootDir):
-        for filename in files:
-            if (re.search("\.csv$", filename) != None):
-                recordID = os.path.splitext(os.path.basename(filename))[0]
                 recordInfo[recordID] = {}
                 recordInfo[recordID]['CSVpath'] = os.path.join(root, filename)
     
