@@ -61,14 +61,11 @@ class ConfigReader(object):
     def getSlidingWindowSeconds(self):
         return self.jsonData['SlidingWindowSeconds']
 
-def getCSVfilesForRecords(allRecords, testingDataTopDir):
+def getCSVfilesForRecords(allRecords, csvRecordInfo):
     allFiles = {}
-    for root, dirs, files in os.walk(testingDataTopDir):
-        for filename in files:
-            if (re.search("\.csv$", filename) != None):
-                recordID = os.path.splitext(os.path.basename(filename))[0]
-                if (recordID in allRecords):
-                    allFiles[recordID] = os.path.join(root, filename)
+    for recordID in allRecords:
+        if (recordID in csvRecordInfo.keys()):
+            allFiles[recordID] = csvRecordInfo[recordID]['CSVpath']
     return (allFiles)
 
 def verifyAndGetNumFeaturesEDF(datasetObj, allRecords):
@@ -294,8 +291,6 @@ if __name__ == "__main__":
 
     if (re.search('CHB', modelName) != None):
         dataSource = "CHB"
-        print ("CHB data source is currently not yet implemented :(")
-        exit (-1)
         # Do not provide the seizures.json file; we will load the seizure info from the recordInfo json file
         datasetObj = CHBdataset(testingDataTopDir, '')
         # loadJsonFile() will initialize the object
@@ -319,7 +314,7 @@ if __name__ == "__main__":
         # No need to gather the files list for EDF files as the file path is 
         # given in the recordInfo.json file
         if (dataFormat == "CSV"):
-            allFiles = getCSVfilesForRecords(allRecords, testingDataTopDir)
+            allFiles = getCSVfilesForRecords(allRecords, csvRecordInfo)
         else:
             print ("Invalid data format ", dataFormat)
             exit (-1)
@@ -333,7 +328,7 @@ if __name__ == "__main__":
         # No need to gather the files list for EDF files as the file path is 
         # given in the recordInfo.json file
         if (dataFormat == "CSV"):
-            allFiles = getCSVfilesForRecords(allRecords, testingDataTopDir)
+            allFiles = getCSVfilesForRecords(allRecords, csvRecordInfo)
         else:
             print ("Invalid data format ", dataFormat)
             exit (-1)
@@ -370,7 +365,7 @@ if __name__ == "__main__":
             exit (-1)
         filesPerPatient = {}
         for patientID in datasetObj.patientInfo.keys():
-            filesPerPatient[patientID] = getCSVfilesForRecords(datasetObj.patientInfo[patientID]['records'], testingDataTopDir)
+            filesPerPatient[patientID] = getCSVfilesForRecords(datasetObj.patientInfo[patientID]['records'], csvRecordInfo)
             if (modelType != "HYBRID"):
                 modelFilePerPatient[patientID] = modelFile.replace("<PATIENT_ID>", patientID)
                 weightsFilePerPatient[patientID] = weightsFile.replace("<PATIENT_ID>", patientID)
@@ -386,7 +381,7 @@ if __name__ == "__main__":
         # No need to gather the files list for EDF files as the file path is 
         # given in the recordInfo.json file
         if (dataFormat == "CSV"):
-            allFiles = getCSVfilesForRecords(allRecords, testingDataTopDir)
+            allFiles = getCSVfilesForRecords(allRecords, csvRecordInfo)
         else:
             print ("Invalid data format ", dataFormat)
             exit (-1)
