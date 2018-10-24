@@ -6,6 +6,8 @@ from Models.eegDNN import eegDNN
 from Models.eegLSTM import eegLSTM
 from DataSets.TUHdataset import TUHdataset
 from DataSets.CHBdataset import CHBdataset
+import numpy as np
+import pandas as pd
 
 
 class ConfigReader(object):
@@ -24,11 +26,25 @@ class ConfigReader(object):
     def getTestingDataDir(self):
         return self.jsonData['testingDataTopDir']
     
-    def getSavedModelFile(self):
-        return self.jsonData['savedModelFile']
+    def getSavedLSTMModelFile(self):
+        # This method is used for HYBRID model testing
+        return self.jsonData['savedLSTMModelFile']
     
-    def getSavedWeightsFile(self):
-        return self.jsonData['savedWeightsFile']
+    def getSavedLSTMWeightsFile(self):
+        # This method is used for HYBRID model testing
+        return self.jsonData['savedLSTMWeightsFile']
+    
+    def getTimeStepsToPredict(self):
+        # This method is used for HYBRID model testing
+        return self.jsonData['timesteps_to_predict']
+    
+    def getSaveDNNdModelFile(self):
+        # This method is used for HYBRID model testing
+        return self.jsonData['savedDNNModelFile']
+    
+    def getSavedDNNWeightsFile(self):
+        # This method is used for HYBRID model testing
+        return self.jsonData['savedDNNWeightsFile']
     
     def getRecordInfoFile(self):
         return self.jsonData['recordInfoJsonFile']
@@ -55,28 +71,38 @@ def getCSVfilesForRecords(allRecords, testingDataTopDir):
                     allFiles[recordID] = os.path.join(root, filename)
     return (allFiles)
 
-def verifyAndGetNumFeatures(datasetObj, allRecords):
+def verifyAndGetNumFeaturesEDF(datasetObj, allRecords):
     # Verify that all the records have same features
     features = datasetObj.recordInfo[allRecords[0]]['channelLabels']
     featuresSet = set(features)
     for recordID in allRecords:
         tmpSet = set(datasetObj.recordInfo[recordID]['channelLabels'])
-        print ("len(tmpSet) = ", len(tmpSet))
         xorSet = featuresSet.symmetric_difference(tmpSet)
         if (len(xorSet) > 0):
             print ("features are not common between", allRecords[0], "and", recordID)
             numFeatures = -1
             return (numFeatures)
+    print ("features are common between all the records!")
     numFeatures = len(featuresSet)
-    print ("features are common between all the records! numFeatures = ", numFeatures)
+    return (numFeatures)
+
+def verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords):
+    # Verify that all the records have same features
+    n_features_1 = csvRecordInfo[allRecords[0]]['numFeatures']
+    for recordID in allRecords:
+        n_features = csvRecordInfo[recordID]['numFeatures']
+        if (n_features != n_features_1):
+            print ("features are not common between", allRecords[0], "and", recordID)
+            numFeatures = -1
+            return (numFeatures)
+    print ("features are common between all the records!")
+    numFeatures = n_features_1
     return (numFeatures)
 
 def testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
     lstmObj = eegLSTM("encoder_decoder_sequence")
-    # numFeatures = 168
-    # lstmObj.loadModel(modelFile, weightsFile, inSeqLen, outSeqLen, numFeatures)
     lstmObj.loadModel(modelFile, weightsFile)
-    print("Loaded model from disk")
+    print("Loaded LSTM model from disk")
     if (numFeaturesInTestFiles != lstmObj.numFeatures):
         print ("number of features in testfiles ", numFeaturesInTestFiles, 
             "!= number of feature in loaded model ", lstmObj.numFeatures)
@@ -91,7 +117,7 @@ def testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
 def testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
     dnnObj = eegDNN("Classifier_3layers")
     dnnObj.loadModel(modelFile, weightsFile)
-    print("Loaded model from disk")
+    print("Loaded DNN model from disk")
     if (numFeaturesInTestFiles != dnnObj.numFeatures):
         print ("number of features in testfiles ", numFeaturesInTestFiles, 
             "!= number of feature in loaded model ", dnnObj.numFeatures)
@@ -102,6 +128,115 @@ def testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
         # X = dataset[:,:19]
         # y = dataset[:,19]
         dnnObj.evaluate()
+    
+def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile, 
+                    dnnWeightsFile, numFeaturesInTestFiles, allFiles,
+                    timeStepsToPredict):
+    lstmObj = eegLSTM("encoder_decoder_sequence")
+    lstmObj.loadModel(lstmModelFile, lstmWeightsFile)
+    print("Loaded LSTM model from disk")
+    dnnObj = eegDNN("Classifier_3layers")
+    dnnObj.loadModel(dnnModelFile, dnnWeightsFile)
+    print("Loaded DNN model from disk")
+    if (numFeaturesInTestFiles != lstmObj.numFeatures):
+        print ("number of features in testfiles ", numFeaturesInTestFiles, 
+            "!= number of feature in loaded model ", lstmObj.numFeatures)
+    if (numFeaturesInTestFiles != dnnObj.numFeatures):
+        print ("number of features in testfiles ", numFeaturesInTestFiles, 
+            "!= number of feature in loaded model ", dnnObj.numFeatures)
+
+    for testFilePath in allFiles.values():
+        print ("testFilePath = ", testFilePath)
+        dataset = pd.read_csv(testFilePath)
+        dataset = dataset.values # Convert to a numpy array from pandas dataframe
+        numFeatures = lstmObj.numFeatures
+        inSeqLen = lstmObj.inSeqLen
+        outSeqLen = lstmObj.outSeqLen
+        numRowsNeededForTest = max((inSeqLen + outSeqLen), (inSeqLen+timeStepsToPredict))
+        numRows = dataset.shape[0]
+        print ("inSeqLen={}, outSeqLen={}, numFeatures={}, numRows={}, numRowsNeededForTest={}".format(
+            inSeqLen, outSeqLen, numFeatures, numRows, numRowsNeededForTest
+        ))
+        # lstmObj.prepareDataset_fullfile(testFilePath)
+        while (numRows > numRowsNeededForTest):
+            numRemainingRows = min (numRows, (inSeqLen+timeStepsToPredict))
+            # print ("numRows={}, numFeatures={}, numRemainingRows={}"
+            #         .format(numRows, numFeatures, numRemainingRows))
+
+            predictedDataset = np.empty((1, (inSeqLen+timeStepsToPredict), numFeatures))
+            predictedSeizureValues = np.empty((inSeqLen+timeStepsToPredict))
+            inputRowStart = 0
+            inputRowEnd = inputRowStart + inSeqLen
+            outputRowStart = inputRowEnd
+            outputRowEnd = outputRowStart + outSeqLen
+            # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+            #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+            predictedDataset[0, inputRowStart:inputRowEnd,:numFeatures] = dataset[inputRowStart:inputRowEnd, :numFeatures]
+            predictedSeizureValues[inputRowStart:inputRowEnd] = dataset[inputRowStart:inputRowEnd, numFeatures]
+            while (numRemainingRows >= numRowsNeededForTest):
+                predictedDataset[:, outputRowStart:outputRowEnd, :] = \
+                    lstmObj.getModel().predict(predictedDataset[:, inputRowStart:inputRowEnd, :])
+                for i in range(outSeqLen):
+                    predictedSeizureValues[outputRowStart+i] = dnnObj.getModel().predict(predictedDataset[:, outputRowStart+i, :])
+                
+                inputRowStart += outSeqLen
+                inputRowEnd = inputRowStart + inSeqLen
+                outputRowStart = inputRowEnd
+                outputRowEnd = outputRowStart + outSeqLen
+                numRemainingRows -= outSeqLen
+                # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+                #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+
+            # print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            # print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            calculateMetrics(predictedSeizureValues[inSeqLen:], dataset[inSeqLen:,numFeatures])
+            dataset = np.delete(dataset, list(range(timeStepsToPredict)), axis=0)
+            numRows = dataset.shape[0]
+
+    return
+
+def calculateMetrics(predictedValues, actualValues):
+    predictedPositive = predictedNegative = 0
+    actualPositive = actualNegative = 0
+    truePositives = falsePositives = trueNegatives = falseNegatives = 0
+    numTotal = predictedValues.shape[0]
+    threshold = 0.5
+    for i in range(numTotal):
+        if (abs(actualValues[i] - 1.0) < 0.1):
+            actualPositive += 1
+        elif (actualValues[i] < 0.1):
+            actualNegative += 1
+        if (abs(predictedValues[i] - 1.0) < threshold):
+            predictedPositive += 1
+            if (abs(predictedValues[i] - actualValues[i]) < threshold):
+                truePositives += 1
+            else:
+                falsePositives += 1
+        elif (predictedValues[i] < threshold):
+            predictedNegative += 1
+            if (abs(predictedValues[i] - actualValues[i]) < threshold):
+                trueNegatives += 1
+            else:
+                falseNegatives += 1
+        else:
+            print ("predictedValues[{}] = {}".format(i, predictedValues[i]))
+
+    if ((actualPositive + actualNegative) != numTotal):
+        print ("Something is wrong!! numbers do not match")
+
+    # don't bother to print anything if there are no positive values in the actual dataset
+    if (actualPositive <= 0):
+        # print ("Nothing to report:  This testcase did not have any actual positives")
+        return
+
+    print ("truePositives = {}, falsePositives = {}, trueNegatives = {}, falseNegatives = {}"
+            .format(truePositives, falsePositives, trueNegatives, falseNegatives))
+    print ("actualPositive = {}, actualNegative = {}".format(actualPositive, actualNegative))
+    print ("Precision = ", float((truePositives + trueNegatives) / (actualPositive + actualNegative)))
+    if (actualPositive > 0):
+        print ("Recall = ", float(truePositives / actualPositive))
+    else:
+        print ("Recall = N.A. (actualPositive == 0)")
 
 if __name__ == "__main__":
     configFile = sys.argv[1]
@@ -112,14 +247,9 @@ if __name__ == "__main__":
 
     testingDataTopDir = cfgReader.getTestingDataDir()
     testingRecords = cfgReader.getTestingRecords()
-    # Load the saved model and try to evaluate on new data
-    # load json and create model
-    modelFile = cfgReader.getSavedModelFile()
-    weightsFile = cfgReader.getSavedWeightsFile()
     recordInfoFile = cfgReader.getRecordInfoFile()
 
-    print ("testingDataTopDir = {}", testingDataTopDir)
-    print ("modelFile = {}, weightsFile = {}".format(modelFile, weightsFile))
+    print ("testingDataTopDir =", testingDataTopDir)
     print ("recordInfoFile = ", recordInfoFile)
 
     # Initlaize the variables to null values
@@ -142,6 +272,7 @@ if __name__ == "__main__":
         del (csvRecordInfo['EOFmarker'])
     elif (modelName in cfgReader.edfModels):
         dataFormat = "EDF"
+        csvRecordInfo = None
         print ("Currently testing directly from the EDF file is not supported :(")
         exit (-1)
     else:
@@ -150,10 +281,13 @@ if __name__ == "__main__":
 
     if (re.search('LSTM', modelName) != None):
         modelType = "LSTM"
-        print ("modelType = {}", modelType)
+        print ("modelType = ", modelType)
     elif (re.search('DNN', modelName) != None):
         modelType = "DNN"
-        print ("modelType = {}", modelType)
+        print ("modelType = ", modelType)
+    elif (re.search('HYBRID', modelName) != None):
+        modelType = "HYBRID"
+        print ("modelType = ", modelType)
     else:
         print ("Error! Unknown model type!!")
         exit (-1)
@@ -205,13 +339,46 @@ if __name__ == "__main__":
             exit (-1)
     elif (re.search("one patient at a time", testingRecords[0]) != None):
         testingRecordsScope = 'ITERATE_OVER_PATIENTS'
+        # Load the saved model and try to evaluate on new data
+        # load json and create model
+        if (modelType == "LSTM"):
+            modelFile = cfgReader.getSavedLSTMModelFile()
+            weightsFile = cfgReader.getSavedLSTMWeightsFile()
+            print ("modelFile = {}, weightsFile = {}".format(modelFile, weightsFile))
+            modelFilePerPatient = {}
+            weightsFilePerPatient = {}
+        elif (modelType == "DNN"):
+            modelFile = cfgReader.getSaveDNNdModelFile()
+            weightsFile = cfgReader.getSavedDNNWeightsFile()
+            print ("modelFile = {}, weightsFile = {}".format(modelFile, weightsFile))
+            modelFilePerPatient = {}
+            weightsFilePerPatient = {}
+        elif (modelType == "HYBRID"):
+            lstmModelFile = cfgReader.getSavedLSTMModelFile()
+            lstmWeightsFile = cfgReader.getSavedLSTMWeightsFile()
+            dnnModelFile = cfgReader.getSaveDNNdModelFile()
+            dnnWeightsFile = cfgReader.getSavedDNNWeightsFile()
+            print ("lstmModelFile = {}, lstmWeightsFile = {}, dnnModelFile = {}, dnnWeightsFile = {}".format(
+                lstmModelFile, lstmWeightsFile, dnnModelFile, dnnWeightsFile
+            ))
+            lstmModelFilePerPatient = {}
+            lstmWeightsFilePerPatient = {}
+            dnnModelFilePerPatient = {}
+            dnnWeightsFilePerPatient = {}
+        else:
+            print ("Invalid modelType ", modelType)
+            exit (-1)
         filesPerPatient = {}
-        modelFilePerPatient = {}
-        weightsFilePerPatient = {}
         for patientID in datasetObj.patientInfo.keys():
             filesPerPatient[patientID] = getCSVfilesForRecords(datasetObj.patientInfo[patientID]['records'], testingDataTopDir)
-            modelFilePerPatient[patientID] = modelFile.replace("<PATIENT_ID>", patientID)
-            weightsFilePerPatient[patientID] = weightsFile.replace("<PATIENT_ID>", patientID)
+            if (modelType != "HYBRID"):
+                modelFilePerPatient[patientID] = modelFile.replace("<PATIENT_ID>", patientID)
+                weightsFilePerPatient[patientID] = weightsFile.replace("<PATIENT_ID>", patientID)
+            else:
+                lstmModelFilePerPatient[patientID] = lstmModelFile.replace("<PATIENT_ID>", patientID)
+                lstmWeightsFilePerPatient[patientID] = lstmWeightsFile.replace("<PATIENT_ID>", patientID)
+                dnnModelFilePerPatient[patientID] = dnnModelFile.replace("<PATIENT_ID>", patientID)
+                dnnWeightsFilePerPatient[patientID] = dnnWeightsFile.replace("<PATIENT_ID>", patientID)
     else:
         testingRecordsScope = 'SPECIFIC_RECORDS'
         allRecords = testingRecords
@@ -231,14 +398,31 @@ if __name__ == "__main__":
             numFiles = len(allFiles)
         print ("Number of files to test the model on = ", numFiles)
 
-        numFeaturesInTestFiles = verifyAndGetNumFeatures(datasetObj, allRecords)
+        if (dataFormat == "CSV"):
+            numFeaturesInTestFiles = verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords)
+        else:
+            numFeaturesInTestFiles = verifyAndGetNumFeaturesEDF(datasetObj, allRecords)
+
         if (numFeaturesInTestFiles <= 0):
             print ("Error in numFeaturesInTestFiles value!")
             exit (-1)
         if (modelType == "LSTM"):
+            modelFile = cfgReader.getSavedLSTMModelFile()
+            weightsFile = cfgReader.getSavedLSTMWeightsFile()
             testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
         elif (modelType == "DNN"):
+            modelFile = cfgReader.getSaveDNNdModelFile()
+            weightsFile = cfgReader.getSavedDNNWeightsFile()
             testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+        elif (modelType == "HYBRID"):
+            lstmModelFile = cfgReader.getSavedLSTMModelFile()
+            lstmWeightsFile = cfgReader.getSavedLSTMWeightsFile()
+            dnnModelFile = cfgReader.getSaveDNNdModelFile()
+            dnnWeightsFile = cfgReader.getSavedDNNWeightsFile()
+            timeStepsToPredict = cfgReader.getTimeStepsToPredict()
+            testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile, 
+                                dnnWeightsFile, numFeaturesInTestFiles, allFiles,
+                                timeStepsToPredict)
         else:
             print ("modelType ", modelType, "is not yet supported")
             exit (-1)
@@ -246,7 +430,10 @@ if __name__ == "__main__":
         # Iterate testing over each patient
         for patientID in filesPerPatient.keys():
             allRecords = datasetObj.patientInfo[patientID]['records']
-            numFeaturesInTestFiles = verifyAndGetNumFeatures(datasetObj, allRecords)
+            if (dataFormat == "CSV"):
+                numFeaturesInTestFiles = verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords)
+            else:
+                numFeaturesInTestFiles = verifyAndGetNumFeaturesEDF(datasetObj, allRecords)
             if (numFeaturesInTestFiles <= 0):
                 # Move on to the next patient
                 print ("Skipping patient", patientID, "because the number of features has some issue")

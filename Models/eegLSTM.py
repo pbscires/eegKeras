@@ -93,7 +93,6 @@ class eegLSTM(object):
     def prepareDataset_fullfile(self, filePath):
         dataset = pd.read_csv(filePath)
         dataset = dataset.values # Convert to a numpy array from pandas dataframe
-        # dataset = np.loadtxt(filePath, delimiter=',')
         # discard the last column which represents the occurrence of seizure
         dataset = dataset[:,:self.numFeatures]
         # scaler = MinMaxScaler(feature_range=(0,1))
@@ -209,6 +208,7 @@ class eegLSTM(object):
         self.X = allRecords_X
         self.y = allRecords_y
         print ("self.X.shape = ", self.X.shape, ",self.y.shape = ", self.y.shape)
+        return (totalSamples)
 
     def prepareDataSubset_fromEDF(self, datasetObj, recordIDs, priorSeconds, postSeconds):
         '''
