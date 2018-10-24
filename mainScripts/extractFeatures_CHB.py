@@ -22,6 +22,7 @@ def createRecordInfoFromSeizureJsonFile():
     jsonFilePath = sys.argv[3]
     print ("json file path = ", jsonFilePath)
     chbd.saveToJsonFile(jsonFilePath)
+<<<<<<< HEAD
 
 def createLLcsvs():
     rootDir = sys.argv[1]
@@ -125,6 +126,8 @@ def summarizeCSVs():
         recordInfo[recordID]['containsHeaderRow'] = True
         recordInfo[recordID]['containsIndexCol'] = True
     _saveToJsonFile(recordInfo, summaryJsonFile)
+=======
+>>>>>>> initial
 
 
 if __name__ == '__main__':
