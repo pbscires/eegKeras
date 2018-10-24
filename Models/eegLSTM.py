@@ -41,7 +41,7 @@ class eegLSTM(object):
                 model.add(LSTM(lstm_units[i], return_sequences=True))
             model.add(LSTM(lstm_units[-1], return_sequences=True)) # For the last LSTM layer
             model.add(TimeDistributed(Dense(numFeatures)))
-            model.compile(loss='mean_squared_logarithmic_error', optimizer='adam', metrics=[self.numNear, self.numFar])
+            model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=[self.numNear, self.numFar])
             # model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
         if (self.modelName == "stacked_LSTM"):
             model.add(LSTM(lstm_units[0], return_sequences=True, input_shape=(inSeqLen, numFeatures)))
@@ -63,7 +63,7 @@ class eegLSTM(object):
             loaded_model = model_from_json(loaded_model_json)
             # load weights into new model
             loaded_model.load_weights(weightsFile)
-            loaded_model.compile(loss='mean_squared_logarithmic_error', optimizer='sgd', metrics=[self.numNear, self.numFar ])
+            loaded_model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=[self.numNear, self.numFar ])
             # loaded_model.compile(loss='mean_absolute_percentage_error', optimizer='adam', metrics=['accuracy'])
             self.model = loaded_model
             # self.inSeqLen = inSeqLen
