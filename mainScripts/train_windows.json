@@ -35,7 +35,7 @@
         "trainingRecords_example2" : ["records for patient 00006440"],
         "trainingRecords_example3" : ["one patient at a time"],
         "trainingRecords_example4" : ["all"],
-        "trainingRecords" : ["one patient at a time"],
+        "trainingRecords" : ["records for patient 00006440"],
         "data_subset_example1" : "fulldata",
         "data_subset_example2" : "seizure-100, seizure+20",
         "data_subset" : "seizure-100, seizure+20",
