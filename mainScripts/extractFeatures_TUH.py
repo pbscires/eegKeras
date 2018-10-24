@@ -137,7 +137,7 @@ if __name__ == '__main__':
     #     is succesfully created, it does not have to be 
     #     invoked again.
     # ------uncomment beginning at the line below------------
-    createRecordInfoFromXlsxFile()
+    # createRecordInfoFromXlsxFile()
     # ------uncomment ending at the line above---------------
 
 
@@ -181,5 +181,5 @@ if __name__ == '__main__':
     # Summarize all the CSV files in a given directory into a json file.
     # Inputs: <top-directory-ofCSV-files> <summaryJsonFile>
     # ------uncomment beginning at the line below------------
-    # summarizeCSVs()
+    summarizeCSVs()
     # ------uncomment ending at the line above---------------

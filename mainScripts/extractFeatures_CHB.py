@@ -16,12 +16,12 @@ def createRecordInfoFromSeizureJsonFile():
     seizuresJsonFile = sys.argv[2]
     print ("rootDir = {}, seizuresJsonFile = {}".format(rootDir, seizuresJsonFile))
 
-    tuhd = CHBdataset(rootDir, seizuresJsonFile)
-    tuhd.summarizeDatset()
-    tuhd.getSeizuresSummary()
+    chbd = CHBdataset(rootDir, seizuresJsonFile)
+    chbd.summarizeDatset()
+    chbd.getSeizuresSummary()
     jsonFilePath = sys.argv[3]
     print ("json file path = ", jsonFilePath)
-    tuhd.saveToJsonFile(jsonFilePath)
+    chbd.saveToJsonFile(jsonFilePath)
 
 def createLLcsvs():
     rootDir = sys.argv[1]
