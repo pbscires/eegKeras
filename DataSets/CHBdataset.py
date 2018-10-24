@@ -88,6 +88,27 @@ class CHBdataset(BaseDataset):
         self.recordInfo[recordID]['numSamples'] = np.int32(f.getNSamples()[0]).item()
         self.recordInfo[recordID]['sampleFrequency'] = np.int32(f.getSampleFrequency(0)).item()
 
+    def getRecordData(self, recordID):
+        filePath = self.recordInfo[recordID]['edfFilePath']
+        numChannels = self.recordInfo[recordID]['numChannels']
+        numSamples = self.recordInfo[recordID]['numSamples']
+        channelLabels = self.recordInfo[recordID]['channelLabels']
+        sigbufs = np.zeros((numChannels, numSamples))
+        f = pyedflib.EdfReader(filePath)
+        for i in np.arange(numChannels):
+            try:
+                sigbufs[i, :] = f.readSignal(i)
+            except ValueError:
+                print ("Failed to read channel {} with name {}".format(i, channelLabels[i]))
+        # sigbufs above is a 23 x 921600 matrix
+        # transpose it so that it becomes 921600 x 23 matrix
+        sigbufs = sigbufs.transpose()
+        f._close()
+        del(f)
+        # print (sigbufs)
+        return (sigbufs)
+
+
     def getSeizuresSummary(self):
         '''
         Read the seizures.json file and summarize the seizure information on per-record basis
@@ -185,6 +206,37 @@ class CHBdataset(BaseDataset):
         else:
             return True
     
+    def getExtendedSeizuresVectorCSV(self, recordID, epochLen, slidingWindowLen, numEpochs, priorSeconds, postSeconds):
+        '''
+        epochLen and slidingWindowLen are in milliseconds
+        '''
+        print ("priorSeconds={}, postSeconds={}, epochLen={}, slidingWindowLen={}, numEpochs={}".format(priorSeconds, postSeconds, epochLen, slidingWindowLen, numEpochs))
+        seizuresVector = np.zeros((numEpochs), dtype=np.int32)
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return seizuresVector
+
+        seizureStarts_orig = self.recordInfo[recordID]['seizureStart']
+        seizureEnds_orig = self.recordInfo[recordID]['seizureEnd']
+        seizureStarts = seizureStarts_orig.copy()
+        seizureEnds = seizureEnds_orig.copy()
+        # Update the seizureStart and seizureEnd values with the prio and post seconds
+        for i in range(len(seizureStarts)):
+            seizureStarts[i] = max(0, seizureStarts[i]-priorSeconds)
+            # seizureEnd may have a value t hat is more than the EDF duration,
+            #  but that does not hurt in this method
+            seizureEnds[i] += postSeconds
+        print ("recordID={}, seizureStarts={},seizureEnds={}".format(recordID, seizureStarts, seizureEnds))
+        # seizureType = self.recordInfo[recordID]['seizureType']
+        for i in range(numEpochs):
+            epochStart = float(i * slidingWindowLen / 1000)
+            epochEnd = epochStart + float(epochLen / 1000)
+            for (seizureStart, seizureEnd) in zip(seizureStarts, seizureEnds):
+                if (( (epochStart >= seizureStart) and (epochStart <= seizureEnd)) or
+                    ( (epochEnd >= seizureStart) and (epochEnd <= seizureEnd))):
+                        seizuresVector[i] = 1
+        # print (seizuresVector)
+        return (seizuresVector)
+
     def getSeizuresVectorCSV(self, recordID, epochLen, slidingWindowLen, numEpochs):
         '''
         epochLen and slidingWindowLen are in milliseconds
@@ -206,3 +258,20 @@ class CHBdataset(BaseDataset):
                             seizuresVector[i] = 1
                             break # break from the inner loop only
             return seizuresVector
+
+    def getCSVDataSubset(self, recordID, csv_df, seizuresVector):
+        '''
+        csv_df -- data frame corresponding to the CSV file
+        '''
+        if ('seizureStart' not in self.recordInfo[recordID].keys()):
+            return (None) # This record has no seizure data
+
+        dataset = np.empty([sum(seizuresVector), csv_df.shape[1]])
+        ind = 0
+        for i in range(len(seizuresVector)):
+            if (seizuresVector[i] == 1):
+                dataset[ind] = csv_df.iloc[i]
+                ind += 1
+        print ("Original dataset shape = {}, reduced dataset shape = {}".format(csv_df.shape, dataset.shape))
+        # Return a dataframe to be compatible with the same method in TUHdataset.py
+        return (pd.DataFrame(dataset))
