@@ -75,7 +75,7 @@ def getCSVfilesForRecords(allRecords, trainingDataTopDir):
                     allFiles[recordID] = os.path.join(root, filename)
     return (allFiles)
 
-def verifyAndGetNumFeatures(datasetObj, allRecords):
+def verifyAndGetNumFeaturesEDF(datasetObj, allRecords):
     # Verify that all the records have same features
     features = datasetObj.recordInfo[allRecords[0]]['channelLabels']
     featuresSet = set(features)
@@ -88,6 +88,19 @@ def verifyAndGetNumFeatures(datasetObj, allRecords):
             return (numFeatures)
     print ("features are common between all the records!")
     numFeatures = len(featuresSet)
+    return (numFeatures)
+
+def verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords):
+    # Verify that all the records have same features
+    n_features_1 = csvRecordInfo[allRecords[0]]['numFeatures']
+    for recordID in allRecords:
+        n_features = csvRecordInfo[recordID]['numFeatures']
+        if (n_features != n_features_1):
+            print ("features are not common between", allRecords[0], "and", recordID)
+            numFeatures = -1
+            return (numFeatures)
+    print ("features are common between all the records!")
+    numFeatures = n_features_1
     return (numFeatures)
 
 def getPriorAndPostSeconds(dataSubset):
@@ -218,6 +231,7 @@ if __name__ == "__main__":
         del (csvRecordInfo['EOFmarker'])
     elif (modelName in cfgReader.edfModels):
         dataFormat = "EDF"
+        csvRecordInfo = None
         print ("Currently training directly from the EDF file is not supported :(")
         exit (-1)
     else:
@@ -329,7 +343,10 @@ if __name__ == "__main__":
 
     if (trainingRecordsScope != 'ITERATE_OVER_PATIENTS'):
         params['allRecords'] = allRecords
-        numFeatures = verifyAndGetNumFeatures(datasetObj, allRecords)
+        if (dataFormat == "CSV"):
+            numFeatures = verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords)
+        else:
+            numFeatures = verifyAndGetNumFeaturesEDF(datasetObj, allRecords)
         if (numFeatures <= 0):
             print ("Error in numFeatures value!")
             exit (-1)
@@ -358,7 +375,10 @@ if __name__ == "__main__":
         # Iterate training over each patient
         for patientID in filesPerPatient.keys():
             allRecords = datasetObj.patientInfo[patientID]['records']
-            numFeatures = verifyAndGetNumFeatures(datasetObj, allRecords)
+            if (dataFormat == "CSV"):
+                numFeatures = verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords)
+            else:
+                numFeatures = verifyAndGetNumFeaturesEDF(datasetObj, allRecords)
             if (numFeatures <= 0):
                 # Move on to the next patient
                 print ("Skipping patient", patientID, "because the number of features has some issue")
