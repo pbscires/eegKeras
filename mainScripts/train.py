@@ -89,6 +89,7 @@ def verifyAndGetNumFeaturesEDF(datasetObj, allRecords):
 
 def verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords):
     # Verify that all the records have same features
+    print(csvRecordInfo)
     n_features_1 = csvRecordInfo[allRecords[0]]['numFeatures']
     for recordID in allRecords:
         n_features = csvRecordInfo[recordID]['numFeatures']
