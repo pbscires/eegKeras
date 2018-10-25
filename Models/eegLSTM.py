@@ -282,7 +282,8 @@ class eegLSTM(object):
 
     def evaluate(self):
         score = self.model.evaluate(self.X, self.y, verbose=2)
-        print("%s: %.2f%%" % (self.model.metrics_names[1], score[1]*100))
+        print("%s: %.2f%%" % (self.model.metrics_names[1], score[1]))
+        print(self.model.metrics_names)
         # y_hat = self.model.predict(self.X)
         # for i in range(self.y.shape[0]):
         #     print (y_hat[i].transpose(), self.y[i].transpose(), (y_hat[i] - self.y[i]).transpose())
