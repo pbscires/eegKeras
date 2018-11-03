@@ -62,16 +62,15 @@ class eegDNN(object):
     def prepareDataset_fullfile(self, filePath):
         # dataset = np.loadtxt(filePath, delimiter=',')
         dataset = pd.read_csv(filePath)
+        dataset = dataset.values # Convert pandas dataframe to numpy array
+        dataset = dataset[:, 1:] # Remove the index column
         numRows = dataset.shape[0]
-        numFeatures = dataset.shape[1] - 2
+        numFeatures = self.numFeatures
         print ("numRows = ", numRows, ", numFeatures = ", numFeatures)
         self.dataset = dataset
         self.numRows = numRows
-        self.numFeatures = numFeatures
-        self.X = dataset.iloc[:,range(numFeatures)]
-        self.y = dataset.iloc[:,[numFeatures]]
-        # self.X = dataset[:,:numFeatures]
-        # self.y = dataset[:,numFeatures]
+        self.X = dataset[:,:numFeatures]
+        self.y = dataset[:,numFeatures]
         print ("X.shape = {}, y.shape = {}".format(self.X.shape, self.y.shape))
 
     def prepareDataSubset_fromCSV(self, datasetObj, recordIDs, csvRecordInfo, epochLen, slidingWinLen, priorSeconds, postSeconds):

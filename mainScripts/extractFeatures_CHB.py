@@ -7,32 +7,54 @@ from Features.FastFourierTransform import FFT
 import time
 import json
 import pandas as pd
+import numpy as np
 
 # This script gathers data from the seizures.json file and the EDF files and
 # creates a recordInfo.json file.
 
-def createRecordInfoFromSeizureJsonFile():
-    rootDir = sys.argv[1]
-    seizuresJsonFile = sys.argv[2]
-    print ("rootDir = {}, seizuresJsonFile = {}".format(rootDir, seizuresJsonFile))
-
-    tuhd = CHBdataset(rootDir, seizuresJsonFile)
-    tuhd.summarizeDatset()
-    tuhd.getSeizuresSummary()
-    jsonFilePath = sys.argv[3]
-    print ("json file path = ", jsonFilePath)
-    tuhd.saveToJsonFile(jsonFilePath)
-
-def createLLcsvs():
-    rootDir = sys.argv[1]
-    seizuresJsonFile = sys.argv[2]
-    print ("rootDir = {}, seizuresJsonFile = {}".format(rootDir, seizuresJsonFile))
+def createRecordInfoFromSeizureJsonFile(rootDir, seizuresJsonFile, jsonFilePath):
 
     chbd = CHBdataset(rootDir, seizuresJsonFile)
     chbd.summarizeDatset()
     chbd.getSeizuresSummary()
-    csvDirPath = sys.argv[3]
-    print ("csvDirPath = {}".format(csvDirPath))
+    chbd.saveToJsonFile(jsonFilePath)
+
+def convert_numpycsv_to_pandascsv(rootDir):
+    filePathsTobeConverted = []
+    # The 2-stage procedure was written to handle case of a directory with
+    # some csv files in pandas dataframe format and some in numpy array format.
+    # The csvfile with pandas data frame format has the index column (1..numRows)
+    for root, dirs, files in os.walk(rootDir):
+        for filename in files:
+            if (re.search("\.csv$", filename) != None):
+                # print ("Converting the file ", filename)
+                filePath = os.path.join(root, filename)
+                # dataset_arr = np.loadtxt(filePath, delimiter=',')
+                dataset_df = pd.read_csv(filePath)
+                dataset_arr = dataset_df.values
+                for i in range(1, dataset_arr.shape[0]):
+                    try:
+                        if (int(dataset_arr[i,0]) != i):
+                            # print ("dataset_arr[{},0] = {}".format( i, dataset_arr[i,0]))
+                            break
+                    except ValueError:
+                        print ("i = ", i)
+                        exit(-1)
+                if (i >= dataset_arr.shape[0]-1):
+                    print ("file ", filename, " is already converted to pd csv")
+                else:
+                    filePathsTobeConverted.append(filePath)
+
+    for filePath in filePathsTobeConverted:
+        print ("Converting the file ", filePath)
+        dataset_arr = np.loadtxt(filePath, delimiter=',')
+        df = pd.DataFrame(dataset_arr)
+        df.to_csv(filePath)
+
+def createLLcsvs(rootDir, seizuresJsonFile, csvDirPath):
+    chbd = CHBdataset(rootDir, seizuresJsonFile)
+    chbd.summarizeDatset()
+    chbd.getSeizuresSummary()
     numRecords = len(chbd.recordInfo)
     print ("numRecords = ", numRecords)
     curRecordNum = 0
@@ -50,16 +72,11 @@ def createLLcsvs():
         llObj.saveLLdfWithSeizureInfo(filePath, chbd, recordID)
     return
 
-def createFFTcsvs():
-    rootDir = sys.argv[1]
-    seizuresJsonFile = sys.argv[2]
-    print ("rootDir = {}, seizuresJsonFile = {}".format(rootDir, seizuresJsonFile))
+def createFFTcsvs(rootDir, seizuresJsonFile, csvDirPath):
 
     chbd = CHBdataset(rootDir, seizuresJsonFile)
     chbd.summarizeDatset()
     chbd.getSeizuresSummary()
-    csvDirPath = sys.argv[3]
-    print ("csvDirPath = {}".format(csvDirPath))
     numRecords = len(chbd.recordInfo)
     print ("numRecords = ", numRecords)
     curRecordNum = 0
@@ -72,7 +89,7 @@ def createFFTcsvs():
             continue
         fftObj = FFT()
         sigbufs = chbd.getRecordData(recordID)
-        fftObj.extractFeature(sigbufs, chbd.recordInfo[recordID]['channelLabels'], chbd.recordInfo[recordID]['sampleFrequency'])
+        fftObj.extractFeatureMultiProcessing(sigbufs, chbd.recordInfo[recordID]['channelLabels'], chbd.recordInfo[recordID]['sampleFrequency'])
         print ("Saving Line Length feature values to csv file ", filePath)
         fftObj.saveFFTWithSeizureInfo(filePath, chbd, recordID)
     return
@@ -91,10 +108,7 @@ def _saveToJsonFile(recordInfo, filePath):
                 print ("Record = ", recordInfo[recordID])
         f.write("\"EOFmarker\" : \"EOF\" }\n")
 
-def summarizeCSVs():
-    rootDir = sys.argv[1]
-    summaryJsonFile = sys.argv[2]
-    print ("rootDir={}, summaryJsonFile={}".format(rootDir, summaryJsonFile))
+def summarizeCSVs(rootDir, summaryJsonFile):
     recordInfo = {}
     for root, dirs, files in os.walk(rootDir):
         for filename in files:
@@ -128,34 +142,37 @@ def summarizeCSVs():
 
 
 if __name__ == '__main__':
-    # Uncomment one of the following code blocks
+    command = sys.argv[1]
 
-    # -------------------------------------------------
-    # Create a JSON file summary of teh TUH EDF files
-    # Inputs: <top-directory-of-TUH-files> 
-    #         <Filepath of the JSON file listing seizures>
-    #     The JSON file was hand-created last year under
-    #      workspace\eegAnalysis\Configuration\seizures.json
-    #  Note:  createJsonFile() needs to be run only once.
-    #     After the json file summarizing all the records
-    #     is succesfully created, it does not have to be 
-    #     invoked again.
-    # ------uncomment beginning at the line below------------
-    # createRecordInfoFromSeizureJsonFile()
-    # ------uncomment ending at the line above---------------
+    if (command == "CreateRecordInfo"):
+        # -------------------------------------------------
+        # Create a JSON file summary of teh CHB EDF files
+        # Inputs: <top-directory-of-CHB-files> 
+        #         <Filepath of the JSON file listing seizures>
+        #     The JSON file was hand-created last year under
+        #      workspace\eegAnalysis\Configuration\seizures.json
+        #  Note:  createJsonFile() needs to be run only once.
+        #     After the json file summarizing all the records
+        #     is succesfully created, it does not have to be 
+        #     invoked again.
+        rootDir = sys.argv[2]
+        seizuresJsonFile = sys.argv[3]
+        outputJsonFilePath = sys.argv[4]
+        print ("rootDir = {}, seizuresJsonFile = {}, outputFile = {}".format(
+            rootDir, seizuresJsonFile, outputJsonFilePath))
+        createRecordInfoFromSeizureJsonFile(rootDir, seizuresJsonFile, outputJsonFilePath)
 
     # -------------------------------------------------
     # Test a previously created json file by loading it
     # Inputs: <path-to-the-json-file>
     # This is a one time test.  It does not need to be
     #   uncommented after the initial test.
-    # ------uncomment beginning at the line below------------
-    # tuhd = TUHdataset('', '')
-    # tuhd.loadJsonFile(sys.argv[1])
-    # ------uncomment ending at the line above---------------
+    if (command == "loadRecordInfo"):
+        chbd = CHBdataset('', '')
+        chbd.loadJsonFile(sys.argv[2])
 
     # -------------------------------------------------
-    # Create a unique CSV file for each of the EDF files in the TUH dataset.
+    # Create a unique CSV file for each of the EDF files in the CHB dataset.
     # The CSV file contains the Line Length feature values for each of the 
     # channels.  Optionally Principal Component Analysis can be done
     # on the raw data, which results in fewer components (linear combination 
@@ -163,12 +180,16 @@ if __name__ == '__main__':
     # Inputs: <top-directory-of-CHB-files> 
     #         <Filepath of the seizures.json file listing seizures>
     #         <path to the directory where csv files have to be stored>
-    # ------uncomment beginning at the line below------------
-    # createLLcsvs()
-    # ------uncomment ending at the line above---------------
+    if (command == "CreateLLcsvs"):
+        rootDir = sys.argv[2]
+        seizuresJsonFile = sys.argv[3]
+        csvDirPath = sys.argv[4]
+        print ("rootDir = {}, seizuresJsonFile = {}, csvDirPath = {}".format(
+            rootDir, seizuresJsonFile, csvDirPath))
+        createLLcsvs(rootDir, seizuresJsonFile, csvDirPath)
 
     # -------------------------------------------------
-    # Create a unique CSV file for each of the EDF files in the TUH dataset.
+    # Create a unique CSV file for each of the EDF files in the CHB dataset.
     # The CSV file contains the FFT feature values for each of the 
     # channels.  Optionally Principal Component Analysis can be done
     # on the raw data, which results in fewer components (linear combination 
@@ -176,13 +197,27 @@ if __name__ == '__main__':
     # Inputs: <top-directory-of-CHB-files> 
     #         <Filepath of the seizures.json file listing seizures>
     #         <path to the directory where csv files have to be stored>
-    # ------uncomment beginning at the line below------------
-    # createFFTcsvs()
-    # ------uncomment ending at the line above---------------
+    if (command == "CreateFFTcsvs"):
+        rootDir = sys.argv[2]
+        seizuresJsonFile = sys.argv[3]
+        csvDirPath = sys.argv[4]
+        print ("rootDir = {}, seizuresJsonFile = {}, csvDirPath = {}".format(
+            rootDir, seizuresJsonFile, csvDirPath))
+        createFFTcsvs(rootDir, seizuresJsonFile, csvDirPath)
 
     # -------------------------------------------------
     # Summarize all the CSV files in a given directory into a json file.
     # Inputs: <top-directory-ofCSV-files> <summaryJsonFile>
-    # ------uncomment beginning at the line below------------
-    summarizeCSVs()
-    # ------uncomment ending at the line above---------------
+    if (command == "summarizeCSVs"):
+        rootDir = sys.argv[2]
+        summaryJsonFile = sys.argv[3]
+        print ("rootDir={}, summaryJsonFile={}".format(rootDir, summaryJsonFile))
+        summarizeCSVs(rootDir, summaryJsonFile)
+
+    # -------------------------------------------------
+    # Convert the previosuly create csv file from numpy format to 
+    # Pandas dataframe format
+    if (command == "convertToPandas"):
+        rootDir = sys.argv[2]
+        print ("rootDir = ", rootDir)
+        convert_numpycsv_to_pandascsv(rootDir)

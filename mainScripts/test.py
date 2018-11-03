@@ -103,13 +103,57 @@ def testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
     if (numFeaturesInTestFiles != lstmObj.numFeatures):
         print ("number of features in testfiles ", numFeaturesInTestFiles, 
             "!= number of feature in loaded model ", lstmObj.numFeatures)
+    timeStepsToPredict = 1
     for testFilePath in allFiles.values():
         print ("testFilePath = ", testFilePath)
-        lstmObj.prepareDataset_fullfile(testFilePath)
-        # dataset = np.loadtxt(testFile, delimiter=',')
-        # X = dataset[:,:19]
-        # y = dataset[:,19]
-        lstmObj.evaluate()
+        # lstmObj.prepareDataset_fullfile(testFilePath)
+        # lstmObj.evaluate()
+        dataset = pd.read_csv(testFilePath)
+        dataset = dataset.values # Convert to a numpy array from pandas dataframe
+        dataset = dataset[:,1:]
+        print ("dataset = ", dataset)
+        numFeatures = lstmObj.numFeatures
+        inSeqLen = lstmObj.inSeqLen
+        outSeqLen = lstmObj.outSeqLen
+        numRowsNeededForTest = max((inSeqLen + outSeqLen), (inSeqLen+timeStepsToPredict))
+        numRows = dataset.shape[0]
+        print ("inSeqLen={}, outSeqLen={}, numFeatures={}, numRows={}, numRowsNeededForTest={}".format(
+            inSeqLen, outSeqLen, numFeatures, numRows, numRowsNeededForTest
+        ))
+        # lstmObj.prepareDataset_fullfile(testFilePath)
+        while (numRows > numRowsNeededForTest):
+            numRemainingRows = min (numRows, (inSeqLen+timeStepsToPredict))
+            # print ("numRows={}, numFeatures={}, numRemainingRows={}"
+            #         .format(numRows, numFeatures, numRemainingRows))
+
+            predictedDataset = np.empty((1, (inSeqLen+timeStepsToPredict), numFeatures))
+            inputRowStart = 0
+            inputRowEnd = inputRowStart + inSeqLen
+            outputRowStart = inputRowEnd
+            outputRowEnd = outputRowStart + outSeqLen
+            # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+            #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+            predictedDataset[0, inputRowStart:inputRowEnd,:numFeatures] = dataset[inputRowStart:inputRowEnd, :numFeatures]
+            while (numRemainingRows >= numRowsNeededForTest):
+                predictedDataset[:, outputRowStart:outputRowEnd, :] = \
+                    lstmObj.getModel().predict(predictedDataset[:, inputRowStart:inputRowEnd, :])
+                
+                inputRowStart += outSeqLen
+                inputRowEnd = inputRowStart + inSeqLen
+                outputRowStart = inputRowEnd
+                outputRowEnd = outputRowStart + outSeqLen
+                numRemainingRows -= outSeqLen
+                # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+                #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+
+            print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            calculateLSTMMetrics(predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures],
+                dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            dataset = np.delete(dataset, list(range(timeStepsToPredict)), axis=0)
+            numRows = dataset.shape[0]
+
+    return
 
 def testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
     dnnObj = eegDNN("Classifier_3layers")
@@ -142,10 +186,16 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
         print ("number of features in testfiles ", numFeaturesInTestFiles, 
             "!= number of feature in loaded model ", dnnObj.numFeatures)
 
+    precisions = []
+    recalls = []
+
     for testFilePath in allFiles.values():
         print ("testFilePath = ", testFilePath)
         dataset = pd.read_csv(testFilePath)
         dataset = dataset.values # Convert to a numpy array from pandas dataframe
+        # Remove the index column (unfortunately we have do do this explicitly)
+        dataset = dataset[:,1:]
+        # print ("dataset[column 0] = ", dataset[:,0])
         numFeatures = lstmObj.numFeatures
         inSeqLen = lstmObj.inSeqLen
         outSeqLen = lstmObj.outSeqLen
@@ -184,15 +234,29 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
                 # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
                 #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
 
-            # print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
-            # print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
-            calculateMetrics(predictedSeizureValues[inSeqLen:], dataset[inSeqLen:,numFeatures])
+            (precision, recall) = calculateDNNMetrics(predictedSeizureValues[:], dataset[:,numFeatures])
+            precisions.append(precision)
+            recalls.append(recall)
+            # if (rc > 0):
+            #     print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            #     print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
             dataset = np.delete(dataset, list(range(timeStepsToPredict)), axis=0)
             numRows = dataset.shape[0]
 
+    print ("precisions = ", precisions)
+    print ("recalls = ", recalls)
     return
 
-def calculateMetrics(predictedValues, actualValues):
+def calculateLSTMMetrics(predictedValues, actualValues):
+    divergence = np.empty((predictedValues.shape[0], predictedValues.shape[1]))
+    for i in range(predictedValues.shape[0]):
+        for j in range(predictedValues.shape[1]):
+            divergence[i, j] = (predictedValues[i, j] - actualValues[i, j]) / actualValues[i, j]
+    
+    print ("divergence = ", divergence)
+
+
+def calculateDNNMetrics(predictedValues, actualValues):
     predictedPositive = predictedNegative = 0
     actualPositive = actualNegative = 0
     truePositives = falsePositives = trueNegatives = falseNegatives = 0
@@ -203,6 +267,8 @@ def calculateMetrics(predictedValues, actualValues):
             actualPositive += 1
         elif (actualValues[i] < 0.1):
             actualNegative += 1
+        else:
+            print ("actualValues[{}] = {}".format(i, actualValues[i]))
         if (abs(predictedValues[i] - 1.0) < threshold):
             predictedPositive += 1
             if (abs(predictedValues[i] - actualValues[i]) < threshold):
@@ -219,21 +285,28 @@ def calculateMetrics(predictedValues, actualValues):
             print ("predictedValues[{}] = {}".format(i, predictedValues[i]))
 
     if ((actualPositive + actualNegative) != numTotal):
+        print ("actualPositive = {}, actualNegative = {}, numTotal = {}".format(
+            actualPositive, actualNegative, numTotal
+        ))
         print ("Something is wrong!! numbers do not match")
 
     # don't bother to print anything if there are no positive values in the actual dataset
     if (actualPositive <= 0):
         # print ("Nothing to report:  This testcase did not have any actual positives")
-        return
+        return (-1, -1)
 
     print ("truePositives = {}, falsePositives = {}, trueNegatives = {}, falseNegatives = {}"
             .format(truePositives, falsePositives, trueNegatives, falseNegatives))
     print ("actualPositive = {}, actualNegative = {}".format(actualPositive, actualNegative))
-    print ("Precision = ", float((truePositives + trueNegatives) / (actualPositive + actualNegative)))
+    precision = float((truePositives + trueNegatives) / (actualPositive + actualNegative))
     if (actualPositive > 0):
-        print ("Recall = ", float(truePositives / actualPositive))
+        recall = float(truePositives / actualPositive)
     else:
-        print ("Recall = N.A. (actualPositive == 0)")
+        recall = -1
+        print ("Recall = N.A. (= -1, because actualPositive == 0)")
+    print ("Precision = {}, Recall = {}".format(precision, recall))
+    
+    return (precision ,recall)
 
 if __name__ == "__main__":
     configFile = sys.argv[1]
