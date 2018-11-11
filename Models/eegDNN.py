@@ -58,6 +58,9 @@ class eegDNN(object):
 
     def getModel(self):
         return (self.model)
+    
+    def get_X_y(self):
+        return (self.X, self.y)
 
     def prepareDataset_fullfile(self, filePath):
         # dataset = np.loadtxt(filePath, delimiter=',')

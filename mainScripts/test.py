@@ -38,7 +38,7 @@ class ConfigReader(object):
         # This method is used for HYBRID model testing
         return self.jsonData['timesteps_to_predict']
     
-    def getSaveDNNdModelFile(self):
+    def getSavedDNNModelFile(self):
         # This method is used for HYBRID model testing
         return self.jsonData['savedDNNModelFile']
     
@@ -169,6 +169,18 @@ def testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
         # X = dataset[:,:19]
         # y = dataset[:,19]
         dnnObj.evaluate()
+        # Now predict the seizure values one at a time and calculate the metrics
+        (X, y) = dnnObj.get_X_y()
+        numRows = X.shape[0]
+        print ("numRows = ", numRows)
+        X = np.expand_dims(X, axis=0)
+        y_hat = np.empty((numRows))
+        for i in range(numRows):
+            y_hat[i] = dnnObj.getModel().predict(X[:, i, :])
+        (precision, recall) = calculateDNNMetrics(y_hat, y)
+        if (recall > 0):
+            print ("precision = {}, recall = {}".format(precision, recall))
+
     
 def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile, 
                     dnnWeightsFile, numFeaturesInTestFiles, allFiles,
@@ -186,6 +198,14 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
         print ("number of features in testfiles ", numFeaturesInTestFiles, 
             "!= number of feature in loaded model ", dnnObj.numFeatures)
 
+    numFeatures = lstmObj.numFeatures
+    inSeqLen = lstmObj.inSeqLen
+    outSeqLen = lstmObj.outSeqLen
+    if (timeStepsToPredict % outSeqLen != 0):
+        print ("Error! timeStepsToPredict should be a multiple of outSeqLen")
+        exit (-1)
+    print ("inSeqLen={}, outSeqLen={}, numFeatures={}".format(inSeqLen, outSeqLen, numFeatures))
+
     precisions = []
     recalls = []
 
@@ -196,45 +216,43 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
         # Remove the index column (unfortunately we have do do this explicitly)
         dataset = dataset[:,1:]
         # print ("dataset[column 0] = ", dataset[:,0])
-        numFeatures = lstmObj.numFeatures
-        inSeqLen = lstmObj.inSeqLen
-        outSeqLen = lstmObj.outSeqLen
-        numRowsNeededForTest = max((inSeqLen + outSeqLen), (inSeqLen+timeStepsToPredict))
+        numLSTMruns = timeStepsToPredict // outSeqLen  # "//"" is integer division
+        # numRowsNeededForTest = max((inSeqLen + outSeqLen), (inSeqLen+timeStepsToPredict))
         numRows = dataset.shape[0]
-        print ("inSeqLen={}, outSeqLen={}, numFeatures={}, numRows={}, numRowsNeededForTest={}".format(
-            inSeqLen, outSeqLen, numFeatures, numRows, numRowsNeededForTest
-        ))
-        # lstmObj.prepareDataset_fullfile(testFilePath)
-        while (numRows > numRowsNeededForTest):
-            numRemainingRows = min (numRows, (inSeqLen+timeStepsToPredict))
-            # print ("numRows={}, numFeatures={}, numRemainingRows={}"
-            #         .format(numRows, numFeatures, numRemainingRows))
-
-            predictedDataset = np.empty((1, (inSeqLen+timeStepsToPredict), numFeatures))
-            predictedSeizureValues = np.empty((inSeqLen+timeStepsToPredict))
-            inputRowStart = 0
+        numHybridRuns = numRows - (inSeqLen + timeStepsToPredict)
+        print ("numRows={}, numLSTMruns={}, numHybridRuns={}".format(
+            numRows, numLSTMruns, numHybridRuns))
+        predictedDataset = np.empty((1, dataset.shape[0], numFeatures))
+        predictedSeizureValues = np.empty((dataset.shape[0]))
+        for i in range(numHybridRuns):
+            inputRowStart = i
             inputRowEnd = inputRowStart + inSeqLen
-            outputRowStart = inputRowEnd
-            outputRowEnd = outputRowStart + outSeqLen
             # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
             #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
             predictedDataset[0, inputRowStart:inputRowEnd,:numFeatures] = dataset[inputRowStart:inputRowEnd, :numFeatures]
             predictedSeizureValues[inputRowStart:inputRowEnd] = dataset[inputRowStart:inputRowEnd, numFeatures]
-            while (numRemainingRows >= numRowsNeededForTest):
-                predictedDataset[:, outputRowStart:outputRowEnd, :] = \
-                    lstmObj.getModel().predict(predictedDataset[:, inputRowStart:inputRowEnd, :])
-                for i in range(outSeqLen):
-                    predictedSeizureValues[outputRowStart+i] = dnnObj.getModel().predict(predictedDataset[:, outputRowStart+i, :])
-                
-                inputRowStart += outSeqLen
-                inputRowEnd = inputRowStart + inSeqLen
+            for j in range(numLSTMruns):
                 outputRowStart = inputRowEnd
                 outputRowEnd = outputRowStart + outSeqLen
-                numRemainingRows -= outSeqLen
+                predictedDataset[:, outputRowStart:outputRowEnd, :] = \
+                    lstmObj.getModel().predict(predictedDataset[:, inputRowStart:inputRowEnd, :])                
+                inputRowStart += outSeqLen
+                inputRowEnd = inputRowStart + inSeqLen
                 # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
                 #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
 
-            (precision, recall) = calculateDNNMetrics(predictedSeizureValues[:], dataset[:,numFeatures])
+            predictedRowStart = i+inSeqLen
+            predictedRowEnd = predictedRowStart + timeStepsToPredict - 1
+            for k in range(predictedRowStart, predictedRowEnd):
+                predictedSeizureValues[k] = dnnObj.getModel().predict(predictedDataset[:, k, :])
+                if (dataset[k, numFeatures] >= 0.5):
+                    print ("predictedDataset[", k, "] = ", predictedDataset[:, k, :], 
+                            ",", predictedSeizureValues[k])
+                    print (dataset[k, :])
+                    print ("-----------------------------------------------------------------------")
+
+            (precision, recall) = calculateDNNMetrics(predictedSeizureValues[predictedRowStart:predictedRowEnd], 
+                                                        dataset[predictedRowStart:predictedRowEnd,numFeatures])
             precisions.append(precision)
             recalls.append(recall)
             # if (rc > 0):
@@ -416,7 +434,7 @@ if __name__ == "__main__":
             modelFilePerPatient = {}
             weightsFilePerPatient = {}
         elif (modelType == "DNN"):
-            modelFile = cfgReader.getSaveDNNdModelFile()
+            modelFile = cfgReader.getSavedDNNModelFile()
             weightsFile = cfgReader.getSavedDNNWeightsFile()
             print ("modelFile = {}, weightsFile = {}".format(modelFile, weightsFile))
             modelFilePerPatient = {}
@@ -424,7 +442,7 @@ if __name__ == "__main__":
         elif (modelType == "HYBRID"):
             lstmModelFile = cfgReader.getSavedLSTMModelFile()
             lstmWeightsFile = cfgReader.getSavedLSTMWeightsFile()
-            dnnModelFile = cfgReader.getSaveDNNdModelFile()
+            dnnModelFile = cfgReader.getSavedDNNModelFile()
             dnnWeightsFile = cfgReader.getSavedDNNWeightsFile()
             print ("lstmModelFile = {}, lstmWeightsFile = {}, dnnModelFile = {}, dnnWeightsFile = {}".format(
                 lstmModelFile, lstmWeightsFile, dnnModelFile, dnnWeightsFile
@@ -479,13 +497,13 @@ if __name__ == "__main__":
             weightsFile = cfgReader.getSavedLSTMWeightsFile()
             testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
         elif (modelType == "DNN"):
-            modelFile = cfgReader.getSaveDNNdModelFile()
+            modelFile = cfgReader.getSavedDNNModelFile()
             weightsFile = cfgReader.getSavedDNNWeightsFile()
             testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
         elif (modelType == "HYBRID"):
             lstmModelFile = cfgReader.getSavedLSTMModelFile()
             lstmWeightsFile = cfgReader.getSavedLSTMWeightsFile()
-            dnnModelFile = cfgReader.getSaveDNNdModelFile()
+            dnnModelFile = cfgReader.getSavedDNNModelFile()
             dnnWeightsFile = cfgReader.getSavedDNNWeightsFile()
             timeStepsToPredict = cfgReader.getTimeStepsToPredict()
             testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile, 

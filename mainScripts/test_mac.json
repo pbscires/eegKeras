@@ -87,7 +87,7 @@
         "testingRecords_example2" : ["records for patient chb03"],
         "testingRecords_example3" : ["one patient at a time"],
         "testingRecords_example4" : ["all"],
-        "testingRecords" : ["records for patient chb03"],
+        "testingRecords" : ["chb03_01", "chb03_02"],
         "savedDNNModelFile_example1" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/savedModels/DNN_CHB_LL_chb03.json",
         "savedDNNWeightsFile_example1" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/savedModels/DNN_CHB_LL_chb03.h5",
         "savedDNNModelFile_example2" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/savedModels/DNN_CHB_LL_<PATIENT_ID>.json",
@@ -195,7 +195,7 @@
         "testingRecords_example3" : ["one patient at a time"],
         "testingRecords_example4" : ["all"],
         "testingRecords" : ["chb03_01", "chb03_02"],
-        "timesteps_to_predict" : 1,
+        "timesteps_to_predict" : 2,
         "epochSeconds" : 10,
         "SlidingWindowSeconds" : 2
     },
