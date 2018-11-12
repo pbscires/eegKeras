@@ -73,9 +73,11 @@
         "testingRecords_example2" : ["records for patient chb03"],
         "testingRecords_example3" : ["one patient at a time"],
         "testingRecords_example4" : ["all"],
-        "testingRecords" : ["chb03_01", "chb03_02"],
+        "testingRecords" : ["chb03_01"],
         "savedLSTMModelFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/savedModels/LSTM_CHB_LL_customRecords.json",
         "savedLSTMWeightsFile" : "/Users/rsburugula/Documents/Etc/Pranav/YHS/ScienceResearch/Data/savedModels/LSTM_CHB_LL_customRecords.h5",
+        "saveLSTMOutputToCSV" : true,
+        "savedLSTMOutputSuffix" : "lstmPredicted",
         "epochSeconds" : 10,
         "SlidingWindowSeconds" : 2
     },

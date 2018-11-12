@@ -60,6 +60,12 @@ class ConfigReader(object):
     
     def getSlidingWindowSeconds(self):
         return self.jsonData['SlidingWindowSeconds']
+    
+    def getSaveLSTMOutputToCSV(self):
+        return self.jsonData['saveLSTMOutputToCSV']
+    
+    def getSavedLSTMOutputSuffix(self):
+        return self.jsonData['savedLSTMOutputSuffix']
 
 def getCSVfilesForRecords(allRecords, csvRecordInfo):
     allFiles = {}
@@ -95,6 +101,53 @@ def verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords):
     print ("features are common between all the records!")
     numFeatures = n_features_1
     return (numFeatures)
+
+def testWithLSTMAndSave(modelFile, weightsFile, numFeaturesInTestFiles, allFiles, lstmCsvSuffix):
+    lstmObj = eegLSTM("encoder_decoder_sequence")
+    lstmObj.loadModel(modelFile, weightsFile)
+    print("Loaded LSTM model from disk")
+    numFeatures = lstmObj.numFeatures
+    inSeqLen = lstmObj.inSeqLen
+    outSeqLen = lstmObj.outSeqLen
+    if (numFeaturesInTestFiles != lstmObj.numFeatures):
+        print ("number of features in testfiles ", numFeaturesInTestFiles, 
+            "!= number of feature in loaded model ", lstmObj.numFeatures)
+    for testFilePath in allFiles.values():
+        print ("testFilePath = ", testFilePath)
+        dataset = pd.read_csv(testFilePath)
+        columnNames = dataset.columns.values.tolist()
+        columnNames = columnNames[1:]
+        print ("columnNames[{}] = {}".format(len(columnNames), columnNames))
+        dataset = dataset.values # Convert to a numpy array from pandas dataframe
+        # Remove the index column (unfortunately we have do do this explicitly)
+        dataset = dataset[:,1:]
+        # print ("dataset = ", dataset)
+        numRows = dataset.shape[0]
+        numLSTMruns = (numRows - inSeqLen) // outSeqLen
+        print ("inSeqLen={}, outSeqLen={}, numFeatures={}, numRows={}, numLSTMruns={}".format(
+            inSeqLen, outSeqLen, numFeatures, numRows, numLSTMruns))
+        predictedDataset = np.empty(dataset.shape)
+        predictedDataset[:inSeqLen,:] = dataset[:inSeqLen,:]
+        inputRowStart = 0
+        inputRowEnd = inputRowStart + inSeqLen
+        for j in range(numLSTMruns):
+            outputRowStart = inputRowEnd
+            outputRowEnd = outputRowStart + outSeqLen
+            intputDataset = np.expand_dims(dataset[inputRowStart:inputRowEnd, :numFeatures], axis=0)
+            predictedDataset[outputRowStart:outputRowEnd,:numFeatures] = \
+                    lstmObj.getModel().predict(intputDataset)
+            predictedDataset[outputRowStart:outputRowEnd, numFeatures] = \
+                    dataset[outputRowStart:outputRowEnd, numFeatures]
+            inputRowStart += outSeqLen
+            inputRowEnd = inputRowStart + inSeqLen
+        predictedDataset = pd.DataFrame(predictedDataset, columns=columnNames)
+        outputFilename = os.path.basename(testFilePath).replace('.csv', '.'+lstmCsvSuffix+'.csv')
+        (head, tail) = os.path.split(testFilePath)
+        outputFilePath = os.path.join(head, outputFilename)
+        print ("Saving the predicted LSTM output to ", outputFilePath)
+        predictedDataset.to_csv(outputFilePath)
+
+    return
 
 def testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
     lstmObj = eegLSTM("encoder_decoder_sequence")
@@ -495,7 +548,11 @@ if __name__ == "__main__":
         if (modelType == "LSTM"):
             modelFile = cfgReader.getSavedLSTMModelFile()
             weightsFile = cfgReader.getSavedLSTMWeightsFile()
-            testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+            if cfgReader.getSaveLSTMOutputToCSV():
+                lstmCsvSuffix = cfgReader.getSavedLSTMOutputSuffix()
+                testWithLSTMAndSave(modelFile, weightsFile, numFeaturesInTestFiles, allFiles, lstmCsvSuffix)
+            else:
+                testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
         elif (modelType == "DNN"):
             modelFile = cfgReader.getSavedDNNModelFile()
             weightsFile = cfgReader.getSavedDNNWeightsFile()
@@ -531,7 +588,11 @@ if __name__ == "__main__":
                 patientID, numFeaturesInTestFiles, modelFile, weightsFile
             ))
             if (modelType == "LSTM"):
-                testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+                if cfgReader.getSaveLSTMOutputToCSV():
+                    lstmCsvSuffix = cfgReader.getSavedLSTMOutputSuffix()
+                    testWithLSTMAndSave(modelFile, weightsFile, numFeaturesInTestFiles, allFiles, lstmCsvSuffix)
+                else:
+                    testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
             elif (modelType == "DNN"):
                 testWithDNN(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
             else:
