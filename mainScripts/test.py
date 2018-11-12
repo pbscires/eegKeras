@@ -96,7 +96,62 @@ def verifyAndGetNumFeaturesCSV(csvRecordInfo, allRecords):
     numFeatures = n_features_1
     return (numFeatures)
 
+def testPredict(modelFile, weightsFile, allFiles):
+    lstmObj = eegLSTM("encoder_decoder_sequence")
+    lstmObj.loadModel(modelFile, weightsFile)
+    print("Loaded LSTM model from disk")
+
+    timeStepsToPredict = 1
+    for testFilePath in allFiles.values():
+        print ("testFilePath = ", testFilePath)
+        # lstmObj.prepareDataset_fullfile(testFilePath)
+        # lstmObj.evaluate()
+        dataset = pd.read_csv(testFilePath)
+        dataset = dataset.values # Convert to a numpy array from pandas dataframe
+        dataset = dataset[:,1:]
+        print ("dataset = ", dataset)
+        numFeatures = lstmObj.numFeatures
+        inSeqLen = lstmObj.inSeqLen
+        outSeqLen = lstmObj.outSeqLen
+        numRowsNeededForTest = max((inSeqLen + outSeqLen), (inSeqLen+timeStepsToPredict))
+        numRows = dataset.shape[0]
+        print ("inSeqLen={}, outSeqLen={}, numFeatures={}, numRows={}, numRowsNeededForTest={}".format(
+            inSeqLen, outSeqLen, numFeatures, numRows, numRowsNeededForTest
+        ))
+        # lstmObj.prepareDataset_fullfile(testFilePath)
+        while (numRows > numRowsNeededForTest):
+            numRemainingRows = min (numRows, (inSeqLen+timeStepsToPredict))
+            # print ("numRows={}, numFeatures={}, numRemainingRows={}"
+            #         .format(numRows, numFeatures, numRemainingRows))
+
+            predictedDataset = np.empty((1, (inSeqLen+timeStepsToPredict), numFeatures))
+            inputRowStart = 0
+            inputRowEnd = inputRowStart + inSeqLen
+            outputRowStart = inputRowEnd
+            outputRowEnd = outputRowStart + outSeqLen
+            # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+            #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+            predictedDataset[0, inputRowStart:inputRowEnd,:numFeatures] = dataset[inputRowStart:inputRowEnd, :numFeatures]
+            while (numRemainingRows >= numRowsNeededForTest):
+                predictedDataset[:, outputRowStart:outputRowEnd, :] = \
+                    lstmObj.getModel().predict(predictedDataset[:, inputRowStart:inputRowEnd, :])
+                
+                inputRowStart += outSeqLen
+                inputRowEnd = inputRowStart + inSeqLen
+                outputRowStart = inputRowEnd
+                outputRowEnd = outputRowStart + outSeqLen
+                numRemainingRows -= outSeqLen
+                # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+                #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+
+            # print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            # print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            dataset = np.delete(dataset, list(range(timeStepsToPredict)), axis=0)
+            numRows = dataset.shape[0]
+    return predictedDataset
+
 def testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
+    output = np.empty(())
     lstmObj = eegLSTM("encoder_decoder_sequence")
     lstmObj.loadModel(modelFile, weightsFile)
     print("Loaded LSTM model from disk")
@@ -477,7 +532,8 @@ if __name__ == "__main__":
         if (modelType == "LSTM"):
             modelFile = cfgReader.getSavedLSTMModelFile()
             weightsFile = cfgReader.getSavedLSTMWeightsFile()
-            testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+            # testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles)
+            print(testPredict(modelFile, weightsFile, allFiles))
         elif (modelType == "DNN"):
             modelFile = cfgReader.getSaveDNNdModelFile()
             weightsFile = cfgReader.getSavedDNNWeightsFile()

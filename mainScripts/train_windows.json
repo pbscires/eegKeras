@@ -97,7 +97,7 @@
         "lstm_layers" : [200, 150],
         "inSeqLen" : 20,
         "outSeqLen" : 1,
-        "training_epochs" : 20,
+        "training_epochs" : 50,
         "training_batchsize" : 10,
         "validation_split" : 0.3,
         "epochSeconds" : 10,

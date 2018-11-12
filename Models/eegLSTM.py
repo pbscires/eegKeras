@@ -290,6 +290,59 @@ class eegLSTM(object):
             # print ("y_hat[0] = ", y_hat[0])
             # print ("y = ", self.y)
     
+    def predictToFile(self, X):
+        inSeqLen = self.inSeqLen
+        outSeqLen = self.outSeqLen
+        numFeatures = self.numFeatures
+        
+
+    def predict(self, X):
+        timeStepsToPredict = 1
+        # lstmObj.prepareDataset_fullfile(testFilePath)
+        # lstmObj.evaluate()
+        # print ("dataset = ", dataset)\
+        dataset = X
+        numFeatures = self.numFeatures
+        outputData = np.empty((1, dataset.shape[0], numFeatures))
+        inSeqLen = self.inSeqLen
+        outSeqLen = self.outSeqLen
+        numRowsNeededForTest = max((inSeqLen + outSeqLen), (inSeqLen+timeStepsToPredict))
+        numRows = dataset.shape[0]
+        print ("inSeqLen={}, outSeqLen={}, numFeatures={}, numRows={}, numRowsNeededForTest={}".format(
+            inSeqLen, outSeqLen, numFeatures, numRows, numRowsNeededForTest
+        ))
+        # lstmObj.prepareDataset_fullfile(testFilePath)
+        while (numRows > numRowsNeededForTest):
+            numRemainingRows = numRows
+            # print ("numRows={}, numFeatures={}, numRemainingRows={}"
+            #         .format(numRows, numFeatures, numRemainingRows))
+
+            predictedDataset = np.empty((1, (inSeqLen+timeStepsToPredict), numFeatures))
+            inputRowStart = 0
+            inputRowEnd = inputRowStart + inSeqLen
+            outputRowStart = inputRowEnd
+            outputRowEnd = outputRowStart + outSeqLen
+            # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+            #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+            predictedDataset[0, inputRowStart:inputRowEnd,:numFeatures] = dataset[inputRowStart:inputRowEnd, :numFeatures]
+            while (numRemainingRows >= numRowsNeededForTest):
+                predictedDataset[:, outputRowStart:outputRowEnd, :] = \
+                    self.getModel().predict(predictedDataset[:, inputRowStart:inputRowEnd, :])
+                
+                inputRowStart += outSeqLen
+                inputRowEnd = inputRowStart + inSeqLen
+                outputRowStart = inputRowEnd
+                outputRowEnd = outputRowStart + outSeqLen
+                numRemainingRows -= outSeqLen
+                # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
+                #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
+
+            # print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            # print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            dataset = np.delete(dataset, list(range(timeStepsToPredict)), axis=0)
+            numRows = dataset.shape[0]
+        return predictedDataset[0,:,:]
+
     def numNear(self, y_true, y_pred):
         # if ((abs(y_true - y_pred) / y_true) < 0.1):
         #     count = 1

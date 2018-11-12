@@ -167,10 +167,13 @@ def trainWithDNN(params):
 
     dnnObj = eegDNN("Classifier_3layers")
     dnnObj.createModel(numFeatures, dnn_layers)
+    lstmObj = eegLSTM("encoder_decoder_sequence")
+    lstmObj.loadModel("D:\\Documents\\savedModels\\LSTM_CHB_LL_chb03.json", "D:\\Documents\\savedModels\\LSTM_CHB_LL_chb03.h5")
     if (dataFormat == "CSV"):
         numSamples = dnnObj.prepareDataSubset_fromCSV(datasetObj, allRecords, 
             csvRecordInfo, (epochSeconds*1000), (slidingWindowSeconds*1000), 
             priorSeconds, postSeconds)
+        dnnObj.X = lstmObj.predict(dnnObj.X)
         # If the number of samples is too low, there is no point in training with this dataset
         if (numSamples <= 10):
             print ("numSamples ({}) is too low! Returning without creating a saved model!".format(numSamples))
