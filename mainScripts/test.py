@@ -311,11 +311,29 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
             # if (rc > 0):
             #     print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
             #     print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
-            dataset = np.delete(dataset, list(range(timeStepsToPredict)), axis=0)
-            numRows = dataset.shape[0]
+            # dataset = np.delete(dataset, list(range(timeStepsToPredict)), axis=0)
+            # numRows = dataset.shape[0]
 
-    print ("precisions = ", precisions)
-    print ("recalls = ", recalls)
+    # print ("precisions = ", precisions)
+    # print ("recalls = ", recalls)
+
+    sum = 0
+    numPrecisions = 0
+    for i in range(len(precisions)):
+        if precisions[i]>=0:
+            sum += precisions[i]
+            numPrecisions += 1
+    avg_precision = sum / numPrecisions
+
+    sum = 0
+    numRecalls = 0
+    for i in range(len(recalls)):
+        if recalls[i]>=0:
+            sum +=recalls[i]
+            numRecalls += 1
+    avg_recall = sum / numRecalls
+    print ("avg_precision = ", avg_precision)
+    print ("avg_recall = ", avg_recall)
     return
 
 def calculateLSTMMetrics(predictedValues, actualValues):
@@ -362,20 +380,23 @@ def calculateDNNMetrics(predictedValues, actualValues):
         print ("Something is wrong!! numbers do not match")
 
     # don't bother to print anything if there are no positive values in the actual dataset
-    if (actualPositive <= 0):
-        # print ("Nothing to report:  This testcase did not have any actual positives")
-        return (-1, -1)
+    # if (actualPositive <= 0):
+    #     # print ("Nothing to report:  This testcase did not have any actual positives")
+    #     return (0, 0)
 
-    print ("truePositives = {}, falsePositives = {}, trueNegatives = {}, falseNegatives = {}"
+    if(actualPositive > 0):
+        print ("truePositives = {}, falsePositives = {}, trueNegatives = {}, falseNegatives = {}"
             .format(truePositives, falsePositives, trueNegatives, falseNegatives))
-    print ("actualPositive = {}, actualNegative = {}".format(actualPositive, actualNegative))
+        print ("actualPositive = {}, actualNegative = {}".format(actualPositive, actualNegative))
     precision = float((truePositives + trueNegatives) / (actualPositive + actualNegative))
     if (actualPositive > 0):
         recall = float(truePositives / actualPositive)
     else:
         recall = -1
-        print ("Recall = N.A. (= -1, because actualPositive == 0)")
-    print ("Precision = {}, Recall = {}".format(precision, recall))
+        if(actualPositive > 0):
+            print ("Recall = N.A. (= -1, because actualPositive == 0)")
+    if(actualPositive > 0):
+        print ("Precision = {}, Recall = {}".format(precision, recall))
     
     return (precision ,recall)
 
