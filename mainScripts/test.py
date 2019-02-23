@@ -261,6 +261,7 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
 
     precisions = []
     recalls = []
+    f1_scores = []
 
     for testFilePath in allFiles.values():
         print ("testFilePath = ", testFilePath)
@@ -304,10 +305,11 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
                     print (dataset[k, :])
                     print ("-----------------------------------------------------------------------")
 
-            (precision, recall) = calculateDNNMetrics(predictedSeizureValues[predictedRowStart:predictedRowEnd], 
+            (precision, recall, f1_score) = calculateDNNMetrics(predictedSeizureValues[predictedRowStart:predictedRowEnd], 
                                                         dataset[predictedRowStart:predictedRowEnd,numFeatures])
             precisions.append(precision)
             recalls.append(recall)
+            f1_scores.append(f1_score)
             # if (rc > 0):
             #     print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
             #     print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
@@ -332,8 +334,18 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
             sum +=recalls[i]
             numRecalls += 1
     avg_recall = sum / numRecalls
+
+    sum = 0
+    num_f1_scores = 0
+    for i in range(len(f1_scores)):
+        if f1_scores[i]>=0:
+            sum += f1_scores[i]
+            num_f1_scores += 1
+    avg_f1_score = sum / num_f1_scores
+
     print ("avg_precision = ", avg_precision)
     print ("avg_recall = ", avg_recall)
+    print ("avg_F1_score = ", avg_f1_score)
     return
 
 def calculateLSTMMetrics(predictedValues, actualValues):
@@ -381,14 +393,17 @@ def calculateDNNMetrics(predictedValues, actualValues):
 
     # don't bother to print anything if there are no positive values in the actual dataset
     # if (actualPositive <= 0):
-    #     # print ("Nothing to report:  This testcase did not have any actual positives")
-    #     return (0, 0)
+    #     print ("Nothing to report:  This testcase did not have any actual positives")
+    #     return (-1, -1)
 
     if(actualPositive > 0):
         print ("truePositives = {}, falsePositives = {}, trueNegatives = {}, falseNegatives = {}"
             .format(truePositives, falsePositives, trueNegatives, falseNegatives))
         print ("actualPositive = {}, actualNegative = {}".format(actualPositive, actualNegative))
-    precision = float((truePositives + trueNegatives) / (actualPositive + actualNegative))
+    # if((truePositives+falsePositives)<=0):
+    #     precision = -1
+    # else:
+    precision = float((truePositives + trueNegatives) / (actualNegative + actualPositive))
     if (actualPositive > 0):
         recall = float(truePositives / actualPositive)
     else:
@@ -398,7 +413,12 @@ def calculateDNNMetrics(predictedValues, actualValues):
     if(actualPositive > 0):
         print ("Precision = {}, Recall = {}".format(precision, recall))
     
-    return (precision ,recall)
+    if(recall>0) and (precision>0):
+        f1_score = (2.0*precision*recall)/(precision+recall)
+    else:
+        f1_score = -1
+    
+    return (precision ,recall, f1_score)
 
 if __name__ == "__main__":
     configFile = sys.argv[1]
