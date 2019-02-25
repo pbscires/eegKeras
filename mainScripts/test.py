@@ -164,7 +164,7 @@ def testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
         dataset = pd.read_csv(testFilePath)
         dataset = dataset.values # Convert to a numpy array from pandas dataframe
         dataset = dataset[:,1:]
-        print ("dataset = ", dataset)
+        # print ("dataset = ", dataset)
         numFeatures = lstmObj.numFeatures
         inSeqLen = lstmObj.inSeqLen
         outSeqLen = lstmObj.outSeqLen
@@ -199,8 +199,8 @@ def testWithLSTM(modelFile, weightsFile, numFeaturesInTestFiles, allFiles):
                 # print ("inputRowStart={}, inputRowEnd={}, outputRowStart={}, outputRowEnd={}"
                 #         .format(inputRowStart, inputRowEnd, outputRowStart, outputRowEnd))
 
-            print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
-            print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            # print ("predictedDataset = ", predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
+            # print ("actual dataset = ", dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
             calculateLSTMMetrics(predictedDataset[0, inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures],
                 dataset[inSeqLen:min (numRows, (inSeqLen+timeStepsToPredict)), :numFeatures])
             dataset = np.delete(dataset, list(range(timeStepsToPredict)), axis=0)
@@ -325,7 +325,10 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
         if precisions[i]>=0:
             sum += precisions[i]
             numPrecisions += 1
-    avg_precision = sum / numPrecisions
+    if(numPrecisions==0):
+        avg_precision=0
+    else:
+        avg_precision = sum / numPrecisions
 
     sum = 0
     numRecalls = 0
@@ -333,7 +336,10 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
         if recalls[i]>=0:
             sum +=recalls[i]
             numRecalls += 1
-    avg_recall = sum / numRecalls
+    if(numRecalls==0):
+        avg_recall=0
+    else:
+        avg_recall = sum / numRecalls
 
     sum = 0
     num_f1_scores = 0
@@ -341,7 +347,10 @@ def testWithHybridModel(lstmModelFile, lstmWeightsFile, dnnModelFile,
         if f1_scores[i]>=0:
             sum += f1_scores[i]
             num_f1_scores += 1
-    avg_f1_score = sum / num_f1_scores
+    if(num_f1_scores==0):
+        avg_f1_score=0
+    else:
+        avg_f1_score = sum / num_f1_scores
 
     print ("avg_precision = ", avg_precision)
     print ("avg_recall = ", avg_recall)
@@ -354,7 +363,7 @@ def calculateLSTMMetrics(predictedValues, actualValues):
         for j in range(predictedValues.shape[1]):
             divergence[i, j] = (predictedValues[i, j] - actualValues[i, j]) / actualValues[i, j]
     
-    print ("divergence = ", divergence)
+    # print ("divergence = ", divergence)
 
 
 def calculateDNNMetrics(predictedValues, actualValues):
